@@ -1,0 +1,24 @@
+lib/
+├── core/                       # Shared logic across the whole app
+│   ├── constants/api_constants.dart              # API keys, app strings, theme colors
+│   ├── errors/                 # Exception handling classes
+│   ├── theme/                  # App-wide Material 3 styling
+│   ├── utils/                  # Date formatters, validators
+│   └── widgets/                # Common buttons, custom loaders
+├── features/
+|   |
+|   _               # Independent app modules
+│   ├── movie_list/             # THE WATCHLIST FEATURE
+│   │   ├── data/               # API calls & Firebase storage logic
+│   │   │   ├── datasources/
+│   │   │   ├── models/
+│   │   │   └── repositories/
+│   │   ├── domain/             # Pure business logic (entities)
+│   │   └── presentation/       # UI (Screens & State Management)
+│   │       ├── screens/
+│   │       ├── viewmodels/
+│   │       └── widgets/
+│   ├── search/                 # SEARCH FEATURE (Add later)
+│   └── profile/                # USER PROFILE (Add later)
+├── services/                   # Global Singletons (Firebase, TMDB API)
+└── main.dart                   # Entry point

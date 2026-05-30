@@ -1,0 +1,249 @@
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import '../models/movie_model.dart';
+import 'movie_service.dart';
+
+class WatchlistService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  User? getCurrentUser() => _auth.currentUser;
+
+  // ───────────────── PROFILE & RANKING ─────────────────
+
+  Future<int> getWatchedCount() async {
+    final user = _auth.currentUser;
+    if (user == null) return 0;
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('movies')
+        .where('status', isEqualTo: 'watched')
+        .get();
+
+    return snapshot.docs.length;
+  }
+
+  Future<void> updateDisplayName(String newName) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.updateDisplayName(newName);
+    await user.reload();
+  }
+
+  Future<void> resetCinemaJourney() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final WriteBatch batch = _firestore.batch();
+    final userDoc = _firestore.collection('users').doc(user.uid);
+
+    try {
+      final moviesSnapshot = await userDoc.collection('movies').get();
+      for (var doc in moviesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      final spotlightSnapshot = await userDoc.collection('top_five').get();
+      for (var doc in spotlightSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      await MovieService.clearCache();
+      debugPrint("Archive Journey Reset Complete.");
+    } catch (e) {
+      debugPrint("Reset failed: $e");
+      throw "Failed to reset journey.";
+    }
+  }
+
+  // ───────────────── COMMUNITY HUB LOGIC ─────────────────
+
+  Future<void> broadcastMovie(MovieModel movie, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? "Anonymous";
+    final watchedCount = await getWatchedCount();
+
+    await _firestore.collection('community_recs').add({
+      'type': 'movie',
+      'movieId': movie.id.toString(),
+      'title': movie.title,
+      'posterPath': movie.posterPath,
+      'senderId': user.uid,
+      'senderName': senderName,
+      'reason': reason,
+      'isTvShow': movie.isTvShow,
+      'timestamp': FieldValue.serverTimestamp(),
+      'senderRankCount': watchedCount,
+      'director': movie.director,
+      'likes': [],
+    });
+  }
+
+  Future<void> broadcastManualSong(String songName, String artistName, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? "Anonymous";
+    final watchedCount = await getWatchedCount();
+
+    await _firestore.collection('community_recs').add({
+      'type': 'song',
+      'title': songName,
+      'artist': artistName,
+      'posterPath': 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000&auto=format&fit=crop',
+      'senderId': user.uid,
+      'senderName': senderName,
+      'reason': reason,
+      'timestamp': FieldValue.serverTimestamp(),
+      'senderRankCount': watchedCount,
+      'likes': [],
+    });
+  }
+
+  Future<void> toggleBroadcastLike(String docId, String userId) async {
+    final docRef = _firestore.collection('community_recs').doc(docId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final List likes = data['likes'] ?? [];
+
+      transaction.update(docRef, {
+        'likes': likes.contains(userId)
+            ? FieldValue.arrayRemove([userId])
+            : FieldValue.arrayUnion([userId]),
+      });
+    });
+  }
+
+  Future<void> deleteBroadcast(String docId) async {
+    await _firestore.collection('community_recs').doc(docId).delete();
+  }
+
+  // FIXED: Added missing reportBroadcast method
+  Future<void> reportBroadcast(String docId, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore.collection('reports').add({
+      'broadcastId': docId,
+      'reporterId': user.uid,
+      'reason': reason,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ───────────────── WATCHLIST CORE ─────────────────
+
+  Future<void> toggleMovieStatus(MovieModel movie, String status) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final docRef = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('movies')
+        .doc(movie.id.toString());
+
+    if (status == 'none') {
+      await docRef.delete();
+      await MovieService.clearCache();
+      return;
+    }
+
+    final data = movie.toJson();
+    data['status'] = status;
+
+    if (status == 'watched') {
+      String director = movie.director ?? "UNKNOWN";
+
+      if (director == "UNKNOWN" || director.isEmpty) {
+        try {
+          final fetched = await MovieService().getDirector(movie.id, movie.isTvShow);
+          director = fetched ?? "UNKNOWN"; 
+        } catch (_) {
+          director = "UNKNOWN";
+        }
+      }
+
+      data['director'] = director;
+      data['watchedAt'] = DateTime.now().toIso8601String();
+      data['userRating'] = data['userRating'] ?? 0.0;
+    } else {
+      data['watchedAt'] = null;
+    }
+
+    await docRef.set(data, SetOptions(merge: true));
+    await MovieService.clearCache();
+  }
+
+  // ───────────────── 🎲 RANDOM PICK (SHAKE) ─────────────────
+
+  Future<MovieModel?> getRandomWatchlistMovie() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    // WISE UPDATE: Try Watchlist first, if empty, suggest something from Watched for a re-watch
+    var snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('movies')
+        .where('status', isEqualTo: 'watchlist')
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+        snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('movies')
+        .where('status', isEqualTo: 'watched')
+        .get();
+    }
+
+    if (snapshot.docs.isEmpty) return null;
+
+    final randomDoc = snapshot.docs[Random().nextInt(snapshot.docs.length)];
+    return MovieModel.fromJson(randomDoc.data() as Map<String, dynamic>);
+  }
+
+  // ───────────────── UTILITIES ─────────────────
+
+  Future<void> updateMovieRating(int movieId, double rating) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).collection('movies').doc(movieId.toString()).update({'userRating': rating});
+    await MovieService.clearCache();
+  }
+
+  Future<void> deleteMovie(int movieId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).collection('movies').doc(movieId.toString()).delete();
+    await MovieService.clearCache();
+  }
+
+  Future<void> pinToTopFive(MovieModel movie) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final ref = _firestore.collection('users').doc(user.uid).collection('top_five');
+    final snapshot = await ref.get();
+    if (snapshot.docs.length >= 5) throw 'Spotlight is full.';
+    await ref.doc(movie.id.toString()).set(movie.toJson());
+  }
+
+  Future<void> unpinFromTopFive(int movieId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).collection('top_five').doc(movieId.toString()).delete();
+  }
+}

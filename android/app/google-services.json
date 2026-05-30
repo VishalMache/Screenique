@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "209341589284",
+    "project_id": "screenique-17e32",
+    "storage_bucket": "screenique-17e32.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:209341589284:android:8ad9b1b7cd7ad34158f5b1",
+        "android_client_info": {
+          "package_name": "com.example.screenique"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "209341589284-8m1qlqr1j5m1pb7bgt05ps3fijnu0l2s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4szppCXYxyEGdUndT7jjTBBDr0FZjaew"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "209341589284-8m1qlqr1j5m1pb7bgt05ps3fijnu0l2s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
