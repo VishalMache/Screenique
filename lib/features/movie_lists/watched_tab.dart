@@ -149,77 +149,77 @@ class _WatchedTabState extends State<WatchedTab> {
         builder: (context, setSheetState) {
           final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
           return Container(
-            height: MediaQuery.of(context).size.height * 0.75,
             decoration: const BoxDecoration(
               color: Color(0xFFF4F4EC),
               border: Border(top: BorderSide(color: Color(0xFF111111), width: 3)),
             ),
             padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(height: 4, width: 40, color: const Color(0xFF111111)),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "RATE & REVIEW ARCHIVE",
-                  style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'Impact'),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  movie.title.toUpperCase(),
-                  style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                ),
-                const Divider(color: Color(0xFF111111), height: 30, thickness: 1.5),
-                
-                // STAR RATING SELECTOR
-                const Text("YOUR RATING", style: TextStyle(color: Color(0xFF111111), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    ...List.generate(5, (index) {
-                      final starValue = index + 1.0;
-                      final isSelected = tempRating >= starValue;
-                      final isHalf = tempRating >= starValue - 0.5 && tempRating < starValue;
-                      return GestureDetector(
-                        onTap: () {
-                          setSheetState(() => tempRating = starValue);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Icon(
-                            isSelected
-                                ? Icons.star_rounded
-                                : (isHalf ? Icons.star_half_rounded : Icons.star_border_rounded),
-                            color: const Color(0xFFC62828),
-                            size: 32,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(height: 4, width: 40, color: const Color(0xFF111111)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "RATE & REVIEW ARCHIVE",
+                    style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'Impact'),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    movie.title.toUpperCase(),
+                    style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                  ),
+                  const Divider(color: Color(0xFF111111), height: 30, thickness: 1.5),
+                  
+                  // STAR RATING SELECTOR
+                  const Text("YOUR RATING", style: TextStyle(color: Color(0xFF111111), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      ...List.generate(5, (index) {
+                        final starValue = index + 1.0;
+                        final isSelected = tempRating >= starValue;
+                        final isHalf = tempRating >= starValue - 0.5 && tempRating < starValue;
+                        return GestureDetector(
+                          onTap: () {
+                            setSheetState(() => tempRating = starValue);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Icon(
+                              isSelected
+                                  ? Icons.star_rounded
+                                  : (isHalf ? Icons.star_half_rounded : Icons.star_border_rounded),
+                              color: const Color(0xFFC62828),
+                              size: 32,
+                            ),
                           ),
-                        ),
-                      );
-                    }),
-                    const Spacer(),
-                    Text(
-                      "${tempRating.toStringAsFixed(1)} / 5",
-                      style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.w900, fontFamily: 'monospace'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
+                        );
+                      }),
+                      const Spacer(),
+                      Text(
+                        "${tempRating.toStringAsFixed(1)} / 5",
+                        style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.w900, fontFamily: 'monospace'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                // REVIEW INPUT
-                const Text("PERSONAL REVIEW NOTES", style: TextStyle(color: Color(0xFF111111), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                const SizedBox(height: 6),
-                Expanded(
-                  child: Container(
+                  // REVIEW INPUT
+                  const Text("PERSONAL REVIEW NOTES", style: TextStyle(color: Color(0xFF111111), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 120, // Assigned a robust fixed height to prevent collapsing during keyboard activation
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F4EC),
                       border: Border.all(color: const Color(0xFF111111), width: 2),
                     ),
                     child: TextField(
                       controller: reviewController,
-                      maxLines: null,
-                      expands: true,
+                      maxLines: 4,
                       style: const TextStyle(color: Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold),
                       decoration: const InputDecoration(
                         hintText: "E.G. AN ABSOLUTE CINEMATIC TRIUMPH, SHATTERING NARRATIVE CONVENTIONS...",
@@ -229,35 +229,35 @@ class _WatchedTabState extends State<WatchedTab> {
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // SAVE BUTTON
-                GestureDetector(
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _updateRating(movie, tempRating);
-                    await _updatePersonalNote(movie, reviewController.text.trim());
-                    _showToast("REVIEW & RATING LOGGED SUCCESSFULLY");
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111111),
-                      border: Border.all(color: const Color(0xFF111111), width: 2),
-                      boxShadow: const [BoxShadow(color: Color(0xFFC62828), offset: Offset(3, 3))],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "SAVE ARCHIVAL LOG",
-                        style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'Impact'),
+                  // SAVE BUTTON
+                  GestureDetector(
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _updateRating(movie, tempRating);
+                      await _updatePersonalNote(movie, reviewController.text.trim());
+                      _showToast("REVIEW & RATING LOGGED SUCCESSFULLY");
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111111),
+                        border: Border.all(color: const Color(0xFF111111), width: 2),
+                        boxShadow: const [BoxShadow(color: Color(0xFFC62828), offset: Offset(3, 3))],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "SAVE ARCHIVAL LOG",
+                          style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'Impact'),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-              ],
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           );
         },

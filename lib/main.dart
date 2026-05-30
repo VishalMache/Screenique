@@ -8,7 +8,6 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'home_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
-import 'features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +53,7 @@ class ScreeniqueApp extends StatelessWidget {
       // The FilmBurn and FilmGrain wrap the entry point so the aesthetic is global
       home: FilmBurnOverlay(
         child: const FilmGrainOverlay(
-          child: SplashScreen(), // App starts with the animated clapperboard
+          child: AuthWrapper(), // App starts directly with the auth gate check
         ),
       ),
     );

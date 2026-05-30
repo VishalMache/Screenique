@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -189,109 +190,122 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                     controller: _screenshotController,
                     child: Stack(
                       children: [
-                        // Background Deep Charcoal to Midnight Red Gradient
+                        // Background Cream (Matches app's core UI!)
                         Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color(0xFF08080C),
-                                Color(0xFF140707),
-                                Color(0xFF030305),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+                          color: const Color(0xFFF4F4EC),
+                        ),
+
+                        // Left Red Ribbon
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 24,
+                            color: const Color(0xFFD32F2F),
+                          ),
+                        ),
+
+                        // Left Red Ribbon Text (Rotated)
+                        Positioned(
+                          left: 2,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: RotatedBox(
+                              quarterTurns: 3, // Rotated vertically upwards
+                              child: const Text(
+                                "SCREENIQUE ARCHIVE  ///  WATCHED ENTRY",
+                                style: TextStyle(
+                                  color: Color(0xFFF4F4EC),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 4,
+                                  fontFamily: 'Impact',
+                                ),
+                              ),
                             ),
                           ),
                         ),
 
-                        // Glowing Ambient Backlight behind the poster for a premium 3D neon look
+                        // Viewfinder Camera Corner Brackets (Brutalist Black)
                         Positioned(
-                          top: 80,
-                          left: 40,
-                          right: 40,
+                          top: 16,
+                          left: 38, // Shifted to make room for red banner
                           child: Container(
-                            height: 250,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFD32F2F).withOpacity(0.18),
-                                  blurRadius: 100,
-                                  spreadRadius: 30,
-                                ),
-                              ],
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                top: BorderSide(color: Color(0xFF111111), width: 1.5),
+                                left: BorderSide(color: Color(0xFF111111), width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                top: BorderSide(color: Color(0xFF111111), width: 1.5),
+                                right: BorderSide(color: Color(0xFF111111), width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          left: 38, // Shifted
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: Color(0xFF111111), width: 1.5),
+                                left: BorderSide(color: Color(0xFF111111), width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          right: 16,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: Color(0xFF111111), width: 1.5),
+                                right: BorderSide(color: Color(0xFF111111), width: 1.5),
+                              ),
                             ),
                           ),
                         ),
 
                         // Main Story Layout Elements
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                          padding: const EdgeInsets.fromLTRB(48, 32, 24, 32), // Adjusted to avoid overlap with red ribbon
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Top Brand Banner (Rebranded to WATCHED)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "SCREENIQUE",
-                                        style: TextStyle(
-                                          color: Colors.white30,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 3,
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        "THE FILM ARCHIVE",
-                                        style: TextStyle(
-                                          color: Colors.white10,
-                                          fontSize: 6,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD32F2F).withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3), width: 0.5),
-                                    ),
-                                    child: const Text(
-                                      "WATCHED ENTRY",
-                                      style: TextStyle(
-                                        color: Color(0xFFD32F2F),
-                                        fontSize: 7,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Spacer(flex: 2),
-
-                              // Screenique brand name placed centered just above the poster
+                              // Simple, clean SCREENIQUE text branding (top center)
                               const Center(
                                 child: Text(
                                   "SCREENIQUE",
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w300,
-                                    letterSpacing: 8,
+                                    color: Color(0xFF111111),
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    fontFamily: 'Impact',
+                                    letterSpacing: 6,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const Spacer(flex: 2),
 
                               // Movie Poster (Premium Outline & Glow Shadow)
                               Center(
@@ -299,44 +313,40 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                                   width: 170,
                                   height: 250,
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-                                    boxShadow: [
+                                    borderRadius: BorderRadius.circular(0), // Brutalist sharp edges
+                                    border: Border.all(color: const Color(0xFF111111), width: 2.5),
+                                    boxShadow: const [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.6),
-                                        blurRadius: 15,
-                                        spreadRadius: 2,
-                                        offset: const Offset(0, 8),
+                                        color: Color(0xFF111111),
+                                        offset: Offset(6, 6),
                                       ),
                                     ],
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(0),
                                     child: Image.network(
                                       widget.movie.posterPath,
                                       fit: BoxFit.cover,
                                       errorBuilder: (c, e, s) => Container(
-                                        color: const Color(0xFF15151A),
-                                        child: const Icon(Icons.movie_outlined, color: Colors.white24, size: 40),
+                                        color: const Color(0xFF111111),
+                                        child: const Icon(Icons.movie_outlined, color: Color(0xFFF4F4EC), size: 40),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                              const Spacer(flex: 3),
+                              const Spacer(flex: 2),
 
-                              // Solid Dark Charcoal Details Card (No Glassmorphism)
+                              // Solid Cream Brutalist Details Card (Matches app's core UI!)
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF111115), // Solid premium dark background
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withOpacity(0.06), width: 1),
-                                  boxShadow: [
+                                  color: const Color(0xFFF4F4EC), // App's cream background
+                                  border: Border.all(color: const Color(0xFF111111), width: 2.5),
+                                  boxShadow: const [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.4),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
+                                      color: Color(0xFF111111),
+                                      offset: Offset(5, 5),
                                     ),
                                   ],
                                 ),
@@ -355,9 +365,10 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                                               Text(
                                                 widget.movie.title.toUpperCase(),
                                                 style: const TextStyle(
-                                                  color: Colors.white,
+                                                  color: Color(0xFF111111),
                                                   fontWeight: FontWeight.w900,
-                                                  fontSize: 14,
+                                                  fontSize: 13,
+                                                  fontFamily: 'Impact',
                                                   letterSpacing: 1,
                                                 ),
                                                 maxLines: 2,
@@ -367,7 +378,7 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                                               Text(
                                                 "RELEASED: $year  |  ${widget.movie.isTvShow ? "SERIES" : "MOVIE"}",
                                                 style: const TextStyle(
-                                                  color: Colors.white38,
+                                                  color: Color(0xFF454545),
                                                   fontSize: 8,
                                                   fontWeight: FontWeight.bold,
                                                   letterSpacing: 0.5,
@@ -378,17 +389,17 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                                         ),
                                         const SizedBox(width: 8),
 
-                                        // Digital Rating Badge
+                                        // Brutalist Rating Badge
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFD32F2F),
-                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFF111111), width: 1.5),
                                           ),
                                           child: Text(
                                             widget.rating.toStringAsFixed(1),
                                             style: const TextStyle(
-                                              color: Colors.white,
+                                              color: Color(0xFFF4F4EC),
                                               fontSize: 12,
                                               fontWeight: FontWeight.w900,
                                               fontFamily: 'monospace',
@@ -397,49 +408,56 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                                         ),
                                       ],
                                     ),
-                                    const Divider(color: Colors.white10, height: 16, thickness: 1),
+                                    const Divider(color: Color(0xFF111111), height: 16, thickness: 1.5),
 
-                                    // Stars & Log Date (Rebranded to WATCHED)
+                                    // Stars (Brutalist Black Stars)
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        _buildStarRating(widget.rating, const Color(0xFFFFB300)),
-                                        Text(
-                                          "WATCHED: $formattedDate",
-                                          style: const TextStyle(
-                                            color: Colors.white24,
-                                            fontSize: 7,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
+                                        _buildStarRating(widget.rating, const Color(0xFF111111)),
+                                        const Text(
+                                          "CINEPHILE RATING",
+                                          style: TextStyle(
+                                            color: Color(0xFFD32F2F),
+                                            fontSize: 7.5,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.0,
                                           ),
                                         ),
                                       ],
                                     ),
 
-                                    // User Review Section (Custom styled, personalized)
-                                    const SizedBox(height: 8),
-                                    const Divider(color: Colors.white10, height: 16, thickness: 1),
-                                    Text(
-                                      "${userName.toUpperCase()}'S REVIEW:",
-                                      style: const TextStyle(
-                                        color: Color(0xFFD32F2F),
-                                        fontSize: 7.5,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.5,
-                                      ),
+                                    // User Review Section (Custom styled, personalized - ALWAYS VISIBLE!)
+                                    const SizedBox(height: 4),
+                                    const Divider(color: Color(0xFF111111), height: 16, thickness: 1.5),
+                                    Row(
+                                      children: [
+                                        Container(width: 3, height: 10, color: const Color(0xFFD32F2F)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "${userName.toUpperCase()}'S REVIEW",
+                                          style: const TextStyle(
+                                            color: Color(0xFFD32F2F),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
                                       widget.movie.personalNote != null && widget.movie.personalNote!.trim().isNotEmpty
                                           ? '"${widget.movie.personalNote}"'
-                                          : '"No review logged..."',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                          : '"AN ABSOLUTE CINEMATIC MUST-WATCH. A DEFINITIVE RECOMMENDATION FOR THE GLOBAL ARCHIVE."',
+                                      style: const TextStyle(
+                                        color: Color(0xFF111111),
                                         fontSize: 9.5,
                                         fontStyle: FontStyle.italic,
                                         height: 1.4,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      maxLines: 3,
+                                      maxLines: 4,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],

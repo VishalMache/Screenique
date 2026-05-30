@@ -23,6 +23,7 @@ import 'widgets/series_recommendation_carousel.dart';
 import 'widgets/dialogue_hero_widget.dart';
 import '../data/dialogues_data.dart';
 import '../profile_screen.dart';
+import 'settings_screen.dart';
 import 'widgets/custom_dialogue_forge_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -53,6 +54,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const Duration _shakeCooldown = Duration(seconds: 2);
   late AnimationController _flareController;
   late Animation<double> _flarePulse;
+  
+  // Quick Add Context to separate FAB flows
+  String? _quickAddContext; 
 
   @override
   void initState() {
@@ -337,16 +341,200 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _closeSearch() => setState(() {_isSearching = false; _searchResults = []; _searchController.clear(); FocusScope.of(context).unfocus();});
+  void _closeSearch() => setState(() {_isSearching = false; _searchResults = []; _quickAddContext = null; _searchController.clear(); FocusScope.of(context).unfocus();});
 
   void _showCollectionOverlay(Widget content, String title) {
     setState(() => _isPopupOpen = true);
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => Container(height: MediaQuery.of(context).size.height * 0.90, decoration: BoxDecoration(color: const Color(0xFFF4F4EC), borderRadius: const BorderRadius.vertical(top: Radius.circular(0)), border: Border.all(color: const Color(0xFF111111), width: 2.0)), child: Column(children: [Container(height: 5, width: 40, margin: const EdgeInsets.symmetric(vertical: 15), decoration: BoxDecoration(color: const Color(0xFF111111), borderRadius: BorderRadius.circular(0))), Text(title.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 5)), Expanded(child: content)]))).then((_) => setState(() => _isPopupOpen = false));
   }
 
+  // Brutalist direct Rate/Review dialog from quick watched search result
+  void _showDirectLogWatchedDialog(MovieModel movie) {
+    final TextEditingController reviewController = TextEditingController();
+    double rating = 3.0;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setST) => AlertDialog(
+          scrollable: true,
+          backgroundColor: const Color(0xFFF4F4EC),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(2),
+            side: const BorderSide(color: Color(0xFF111111), width: 2),
+          ),
+          title: Row(
+            children: const [
+              Icon(Icons.star_rounded, color: Color(0xFFD32F2F), size: 26),
+              SizedBox(width: 10),
+              Text(
+                "RATE & REVIEW",
+                style: TextStyle(
+                  color: Color(0xFF111111),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "LOG AND REVIEW ${movie.title.toUpperCase()}.",
+                style: const TextStyle(color: Color(0xFF454545), fontSize: 11, letterSpacing: 1),
+              ),
+              const SizedBox(height: 20),
+              
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("YOUR RATING", style: TextStyle(color: Color(0xFF111111), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => GestureDetector(
+                  onTap: () => setST(() => rating = i + 1.0),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    child: Icon(
+                      i < rating ? Icons.star : Icons.star_border,
+                      color: i < rating ? const Color(0xFF111111) : const Color(0xFF454545),
+                      size: 32,
+                    ),
+                  ),
+                )),
+              ),
+              Center(
+                child: Text(
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("YOUR REVIEW", style: TextStyle(color: Color(0xFF111111), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reviewController,
+                maxLines: 4,
+                minLines: 2,
+                style: const TextStyle(color: Color(0xFF111111), fontSize: 15, height: 1.5),
+                decoration: const InputDecoration(
+                  hintText: "WRITE YOUR REVIEW (OPTIONAL)...",
+                  hintStyle: TextStyle(color: Color(0xFF454545), fontSize: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF111111), width: 2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFD32F2F), width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Color(0xFFF4F4EC),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("CANCEL", style: TextStyle(color: Color(0xFF111111), fontSize: 13, letterSpacing: 1)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF111111)),
+              onPressed: () async {
+                final reviewText = reviewController.text.trim();
+                
+                final updatedMovie = MovieModel(
+                  id: movie.id,
+                  title: movie.title,
+                  overview: movie.overview,
+                  posterPath: movie.posterPath,
+                  voteAverage: movie.voteAverage,
+                  releaseDate: movie.releaseDate,
+                  genreIds: movie.genreIds,
+                  isTvShow: movie.isTvShow,
+                  personalNote: reviewText,
+                );
+                
+                await _watchlistService.toggleMovieStatus(updatedMovie, 'watched');
+                await _watchlistService.updateMovieRating(movie.id, rating);
+                
+                if (mounted) {
+                  Navigator.pop(context);
+                  _closeSearch();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("WATCHED ${movie.title.toUpperCase()} RECORDED SUCCESSFULLY"),
+                      backgroundColor: const Color(0xFF111111),
+                    ),
+                  );
+                }
+              },
+              child: const Text("SAVE", style: TextStyle(color: Color(0xFFF4F4EC), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.5)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showQuickAddMenu() {
     setState(() => _isPopupOpen = true);
-    showModalBottomSheet(context: context, backgroundColor: Colors.transparent, builder: (context) => Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: const Color(0xFFF4F4EC), border: Border.all(color: const Color(0xFF111111), width: 2.0)), child: Column(mainAxisSize: MainAxisSize.min, children: [Container(height: 4, width: 40, decoration: const BoxDecoration(color: Color(0xFF111111))), const SizedBox(height: 35), Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_quickAction(Icons.bookmark_add_outlined, "WATCHLIST", () {Navigator.pop(context); setState(() => _isSearching = true);}), _quickAction(Icons.verified_outlined, "WATCHED", () {Navigator.pop(context); setState(() => _isSearching = true);}), _quickAction(Icons.podcasts_rounded, "RECOMMEND?", () {Navigator.pop(context); setState(() => _isSearching = true);}), _quickAction(Icons.confirmation_num_outlined, "EXPERIENCE", () {Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (context) => const AddExperienceScreen()));})]), const SizedBox(height: 20)]))).then((_) => setState(() => _isPopupOpen = false));
+    showModalBottomSheet(
+      context: context, 
+      backgroundColor: Colors.transparent, 
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24), 
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F4EC), 
+          border: Border.all(color: const Color(0xFF111111), width: 2.0),
+        ), 
+        child: Column(
+          mainAxisSize: MainAxisSize.min, 
+          children: [
+            Container(height: 4, width: 40, decoration: const BoxDecoration(color: Color(0xFF111111))), 
+            const SizedBox(height: 35), 
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround, 
+              children: [
+                _quickAction(Icons.bookmark_add_outlined, "WATCHLIST", () {
+                  Navigator.pop(context); 
+                  setState(() {
+                    _isSearching = true;
+                    _quickAddContext = 'watchlist'; // Specific watchlist add flow
+                  });
+                }), 
+                _quickAction(Icons.verified_outlined, "WATCHED", () {
+                  Navigator.pop(context); 
+                  setState(() {
+                    _isSearching = true;
+                    _quickAddContext = 'watched'; // Specific watched log flow
+                  });
+                }), 
+                _quickAction(Icons.podcasts_rounded, "RECOMMEND?", () {
+                  Navigator.pop(context); 
+                  setState(() {
+                    _isSearching = true;
+                    _quickAddContext = null;
+                  });
+                }), 
+                _quickAction(Icons.confirmation_num_outlined, "EXPERIENCE", () {
+                  Navigator.pop(context); 
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddExperienceScreen()));
+                })
+              ],
+            ), 
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    ).then((_) => setState(() => _isPopupOpen = false));
   }
 
   Widget _quickAction(IconData icon, String label, VoidCallback onTap) => GestureDetector(onTap: onTap, child: Column(children: [Icon(icon, color: const Color(0xFFC62828), size: 32), const SizedBox(height: 10), Text(label, style: const TextStyle(color: Color(0xFF111111), fontSize: 9, letterSpacing: 2, fontWeight: FontWeight.bold))]));
@@ -423,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSolidAppBar() => Positioned(top: 0, left: 0, right: 0, child: AnimatedContainer(duration: const Duration(milliseconds: 300), height: _isSearching ? 120 : 100, padding: const EdgeInsets.only(top: 50, left: 24, right: 16), decoration: const BoxDecoration(color: Color(0xFFF4F4EC), border: Border(bottom: BorderSide(color: Color(0xFF111111), width: 1.5))), child: _isSearching ? _buildSearchField() : _buildLogoHeader()));
 
-  Widget _buildLogoHeader() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("SCREENIQUE", style: TextStyle(color: Color(0xFF111111), fontWeight: FontWeight.w900, letterSpacing: -1, fontSize: 32, fontFamily: 'Impact')), Row(children: [_buildSquareIcon(Icons.search_rounded, () => setState(() => _isSearching = true)), const SizedBox(width: 8), _buildSquareIcon(Icons.person_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())))])]);
+  Widget _buildLogoHeader() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Transform.translate(offset: const Offset(-12, 0), child: Image.asset('assets/logo12.png', width: 200, fit: BoxFit.fitWidth)), _buildSquareIcon(Icons.search_rounded, () => setState(() => _isSearching = true))]);
 
   Widget _buildSquareIcon(IconData icon, VoidCallback onTap) => GestureDetector(onTap: onTap, child: Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFF111111)), child: Icon(icon, color: const Color(0xFFF4F4EC), size: 20)));
 
@@ -573,7 +761,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return ListView.builder(padding: const EdgeInsets.only(top: 140, bottom: 40), itemCount: _searchResults.length, itemBuilder: (context, index) {
       final movie = _searchResults[index];
       final String displayName = movie.title.isNotEmpty ? movie.title : "UNKNOWN ENTITY";
-      return Container(margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), decoration: BoxDecoration(color: const Color(0xFFF4F4EC), borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xFF111111), width: 2), boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))]), child: ListTile(contentPadding: const EdgeInsets.all(12), onTap: () {if (movie.isPerson) {Navigator.push(context, MaterialPageRoute(builder: (context) => DirectorProfileScreen(personId: movie.id, name: displayName)));} else {Navigator.push(context, MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)));}}, leading: ClipRRect(borderRadius: BorderRadius.circular(2), child: Image.network(movie.posterPath, width: 50, height: 75, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111), width: 50, child: Icon(movie.isPerson ? Icons.person : Icons.movie, color: const Color(0xFFF4F4EC))))), title: Text(displayName.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), subtitle: Text(movie.isPerson ? "ARCHIVAL PERSON" : (movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate), style: const TextStyle(color: Color(0xFF454545), fontSize: 10, fontWeight: FontWeight.bold)), trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF111111), size: 14)));
+      return Container(margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), decoration: BoxDecoration(color: const Color(0xFFF4F4EC), borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xFF111111), width: 2), boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))]), child: ListTile(contentPadding: const EdgeInsets.all(12), onTap: () async {
+        if (movie.isPerson) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => DirectorProfileScreen(personId: movie.id, name: displayName)));
+        } else if (_quickAddContext == 'watchlist') {
+          await _watchlistService.toggleMovieStatus(movie, 'watchlist');
+          _closeSearch();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("ADDED ${movie.title.toUpperCase()} TO WATCHLIST 🎬", style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                backgroundColor: const Color(0xFF111111),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } else if (_quickAddContext == 'watched') {
+          _showDirectLogWatchedDialog(movie);
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)));
+        }
+      }, leading: ClipRRect(borderRadius: BorderRadius.circular(2), child: Image.network(movie.posterPath, width: 50, height: 75, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111), width: 50, child: Icon(movie.isPerson ? Icons.person : Icons.movie, color: const Color(0xFFF4F4EC))))), title: Text(displayName.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), subtitle: Text(movie.isPerson ? "ARCHIVAL PERSON" : (movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate), style: const TextStyle(color: Color(0xFF454545), fontSize: 10, fontWeight: FontWeight.bold)), trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF111111), size: 14)));
     });
   }
 
@@ -708,7 +916,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _buildNavIcon(Icons.sensors_rounded, "CINECAST", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastWireScreen()))),
               const SizedBox(width: 40),
               _buildNavIcon(Icons.confirmation_num_outlined, "HUB", () => _showCollectionOverlay(const ExperiencesTab(), "BEST EXPERIENCE HUB")),
-              _buildNavIcon(Icons.person_outline_rounded, "PROFILE", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))),
+              _buildNavIcon(Icons.settings_outlined, "SETTINGS", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()))),
             ],
           ),
         ),
