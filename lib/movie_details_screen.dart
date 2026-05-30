@@ -17,32 +17,36 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   final WatchlistService _watchlistService = WatchlistService();
   final MovieService _movieService = MovieService();
   
-  // Localized State Copy to prevent detail vanishing during parent rebuilds
   late MovieModel _movie;
-  late Future<List<Map<String, dynamic>>> _castFuture;
+  List<Map<String, dynamic>> _cast = [];
   
   Map<String, dynamic>? _fullDetails;
-  String _directorName = "LOADING..."; 
+  String _directorName = "UNKNOWN"; 
   bool _isSpotlight = false;
   bool _isWatched = false;
   bool _isInWatchlist = false; 
-  bool _isLoadingDetails = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _movie = widget.movie;
-    _castFuture = _movieService.getMediaCast(_movie.id, isTv: _movie.isTvShow);
-    _fetchExtendedData();
-    _checkInitialStatus();
+    _loadAllData();
   }
 
-  Future<void> _fetchExtendedData() async {
+  Future<void> _loadAllData() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
     try {
-      final details = await _movieService.getMediaDetails(
-        _movie.id, 
-        isTv: _movie.isTvShow
-      );
+      final results = await Future.wait([
+        _movieService.getMediaDetails(_movie.id, isTv: _movie.isTvShow),
+        _movieService.getMediaCast(_movie.id, isTv: _movie.isTvShow),
+        _checkInitialStatusFuture(),
+      ]);
+
+      final details = results[0] as Map<String, dynamic>?;
+      final castData = results[1] as List<Map<String, dynamic>>;
 
       String foundDirector = "UNKNOWN";
       if (details != null && details['credits'] != null) {
@@ -58,15 +62,18 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         setState(() {
           _fullDetails = details;
           _directorName = foundDirector;
-          _isLoadingDetails = false;
+          _cast = castData;
+          _isLoading = false;
         });
       }
-    } catch (e) { 
-      if (mounted) setState(() => _isLoadingDetails = false); 
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<void> _checkInitialStatus() async {
+  Future<void> _checkInitialStatusFuture() async {
     final user = _watchlistService.getCurrentUser();
     if (user == null) return;
     
@@ -76,29 +83,26 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     ]);
 
     if (mounted) {
-      setState(() {
-        _isSpotlight = results[0].exists;
-        if (results[1].exists) {
-          final data = results[1].data() as Map<String, dynamic>;
-          _isWatched = data['status'] == 'watched';
-          _isInWatchlist = data['status'] == 'watchlist';
-          
-          // Re-bind personal note/review if it already exists in Firestore
-          if (data['personalNote'] != null && data['personalNote'].toString().trim().isNotEmpty) {
-            _movie = MovieModel(
-              id: _movie.id,
-              title: _movie.title,
-              overview: _movie.overview,
-              posterPath: _movie.posterPath,
-              voteAverage: _movie.voteAverage,
-              releaseDate: _movie.releaseDate,
-              genreIds: _movie.genreIds,
-              isTvShow: _movie.isTvShow,
-              personalNote: data['personalNote'],
-            );
-          }
+      _isSpotlight = results[0].exists;
+      if (results[1].exists) {
+        final data = results[1].data() as Map<String, dynamic>;
+        _isWatched = data['status'] == 'watched';
+        _isInWatchlist = data['status'] == 'watchlist';
+        
+        if (data['personalNote'] != null && data['personalNote'].toString().trim().isNotEmpty) {
+          _movie = MovieModel(
+            id: _movie.id,
+            title: _movie.title,
+            overview: _movie.overview,
+            posterPath: _movie.posterPath,
+            voteAverage: _movie.voteAverage,
+            releaseDate: _movie.releaseDate,
+            genreIds: _movie.genreIds,
+            isTvShow: _movie.isTvShow,
+            personalNote: data['personalNote'],
+          );
         }
-      });
+      }
     }
   }
 
@@ -132,12 +136,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               style: const TextStyle(color: Color(0xFF111111), fontSize: 15, height: 1.5),
               decoration: const InputDecoration(
                 hintText: "WHY SHOULD OTHERS WATCH THIS?",
-                hintStyle: const TextStyle(color: Color(0xFF454545), fontSize: 12),
-                counterStyle: const TextStyle(color: Color(0xFF454545), fontSize: 11),
+                hintStyle: TextStyle(color: Color(0xFF454545), fontSize: 12),
+                counterStyle: TextStyle(color: Color(0xFF454545), fontSize: 11),
                 filled: true,
-                fillColor: const Color(0xFFF4F4EC),
-                enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF111111), width: 2)),
-                focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFD32F2F), width: 2)),
+                fillColor: Color(0xFFF4F4EC),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF111111), width: 2)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFD32F2F), width: 2)),
               ),
             ),
           ],
@@ -171,10 +175,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     );
   }
 
-  // premium watched logging dialog (review text + rating stars slider)
   void _showLogWatchedDialog(Color accent) {
     final TextEditingController reviewController = TextEditingController(text: _movie.personalNote);
-    double rating = 3.0; // Default rating
+    double rating = 3.0;
     
     showDialog(
       context: context,
@@ -210,7 +213,6 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Rating Stars
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text("YOUR RATING", style: TextStyle(color: Color(0xFF111111), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
@@ -239,7 +241,6 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Review Input
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text("YOUR REVIEW", style: TextStyle(color: Color(0xFF111111), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
@@ -250,17 +251,17 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                 maxLines: 4,
                 minLines: 2,
                 style: const TextStyle(color: Color(0xFF111111), fontSize: 15, height: 1.5),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: "WRITE YOUR REVIEW (OPTIONAL)...",
-                  hintStyle: const TextStyle(color: Color(0xFF454545), fontSize: 12),
-                  enabledBorder: const OutlineInputBorder(
+                  hintStyle: TextStyle(color: Color(0xFF454545), fontSize: 12),
+                  enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Color(0xFF111111), width: 2),
                   ),
-                  focusedBorder: const OutlineInputBorder(
+                  focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Color(0xFFD32F2F), width: 2),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF4F4EC),
+                  fillColor: Color(0xFFF4F4EC),
                 ),
               ),
             ],
@@ -321,11 +322,41 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     const Color tvBlue = Color(0xFF111111);
     final Color accentColor = _movie.isTvShow ? tvBlue : noirCrimson;
 
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF4F4EC),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                height: 40,
+                width: 40,
+                child: CircularProgressIndicator(
+                  color: Color(0xFFD32F2F),
+                  strokeWidth: 4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                "ACCESSING CINEMATIC ARCHIVES...",
+                style: TextStyle(
+                  color: Color(0xFF111111),
+                  fontFamily: 'Impact',
+                  fontSize: 14,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4EC),
       body: Stack(
         children: [
-          
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -336,11 +367,54 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _buildTitleSection(),
                       const SizedBox(height: 12),
                       _buildMetaData(accentColor),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
+                      
+                      // --- GENRES WRAP ---
+                      if (_fullDetails?['genres'] != null) ...[
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: (_fullDetails!['genres'] as List).map<Widget>((genre) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F4EC),
+                                border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                              ),
+                              child: Text(
+                                genre['name'].toString().toUpperCase(),
+                                style: const TextStyle(
+                                  color: Color(0xFF111111),
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // --- TAGLINE ---
+                      if (_fullDetails?['tagline'] != null && _fullDetails!['tagline'].toString().isNotEmpty) ...[
+                        Text(
+                          '"${_fullDetails!['tagline'].toString().toUpperCase()}"',
+                          style: const TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'serif',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       const Divider(color: Color(0xFF111111), thickness: 3),
                       const SizedBox(height: 24),
                       
@@ -357,6 +431,28 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                       _buildSectionLabel("TECHNICAL DETAILS", accentColor),
                       const SizedBox(height: 20),
                       _buildTechnicalManifest(accentColor),
+
+                      // --- PRODUCTION COMPANIES ---
+                      if (_fullDetails?['production_companies'] != null && (_fullDetails!['production_companies'] as List).isNotEmpty) ...[
+                        const SizedBox(height: 32),
+                        const Divider(color: Color(0xFF111111), thickness: 2),
+                        const SizedBox(height: 32),
+                        _buildSectionLabel("PRODUCTION STUDIOS", accentColor),
+                        const SizedBox(height: 16),
+                        Text(
+                          (_fullDetails!['production_companies'] as List)
+                              .map((company) => company['name'])
+                              .join(" • ")
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF454545),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                            height: 1.6,
+                          ),
+                        ),
+                      ],
                       
                       const SizedBox(height: 32),
                       const Divider(color: Color(0xFF111111), thickness: 2),
@@ -387,8 +483,6 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   }
 
   Widget _buildTechnicalManifest(Color accent) {
-    if (_isLoadingDetails) return LinearProgressIndicator(color: accent, backgroundColor: const Color(0xFFF4F4EC));
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
@@ -398,7 +492,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 2,
-        childAspectRatio: 2.5,
+        childAspectRatio: 2.3,
         children: [
           _buildSpecItem("DIRECTOR", _directorName.toUpperCase()),
 
@@ -414,6 +508,11 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             _buildSpecItem("BUDGET", _fullDetails?['budget'] != null && _fullDetails!['budget'] > 0 ? "\$${(_fullDetails!['budget'] / 1000000).toStringAsFixed(1)}M" : "UNSET")
           else
             _buildSpecItem("TYPE", (_fullDetails?['type'] ?? 'Web Series').toString().toUpperCase()),
+
+          if (!_movie.isTvShow)
+            _buildSpecItem("REVENUE", _fullDetails?['revenue'] != null && _fullDetails!['revenue'] > 0 ? "\$${(_fullDetails!['revenue'] / 1000000).toStringAsFixed(1)}M" : "UNSET")
+          else
+            _buildSpecItem("POPULARITY", "${_fullDetails?['popularity']?.toStringAsFixed(0) ?? 'N/A'} SCORE"),
         ],
       ),
     );
@@ -431,19 +530,67 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   }
 
   Widget _buildAppBar() {
+    final String? backdropPath = _fullDetails?['backdrop_path'];
     return SliverAppBar(
-      expandedHeight: 420, pinned: true, backgroundColor: const Color(0xFFF4F4EC),
-      leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111111), size: 20), onPressed: () => Navigator.pop(context)),
+      expandedHeight: 380, pinned: true, backgroundColor: const Color(0xFFF4F4EC),
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F4EC),
+          border: Border.all(color: const Color(0xFF111111), width: 1.5),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111111), size: 16),
+          onPressed: () => Navigator.pop(context),
+          padding: EdgeInsets.zero,
+        ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
-        background: Center(
-          child: Hero(
-            tag: 'movie-poster-${_movie.id}',
-            child: Container(
-              width: 220, height: 320,
-              decoration: BoxDecoration(color: const Color(0xFFF4F4EC), borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xFF111111), width: 2), boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))]),
-              child: ClipRRect(borderRadius: BorderRadius.circular(2), child: Image.network(_movie.posterPath, fit: BoxFit.cover)),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Atmospheric Backdrop Image
+            if (backdropPath != null)
+              ShaderMask(
+                shaderCallback: (bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black54, Colors.transparent],
+                    stops: [0.3, 0.95],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                  child: Image.network(
+                    'https://image.tmdb.org/t/p/w780$backdropPath',
+                    fit: BoxFit.cover,
+                    color: Colors.grey,
+                    colorBlendMode: BlendMode.saturation,
+                  ),
+                ),
+              ),
+            // Floating Poster Card
+            Center(
+              child: Hero(
+                tag: 'movie-poster-${_movie.id}',
+                child: Container(
+                  width: 180, height: 260,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4EC),
+                    borderRadius: BorderRadius.circular(2),
+                    border: Border.all(color: const Color(0xFF111111), width: 2),
+                    boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(5, 5))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: Image.network(_movie.posterPath, fit: BoxFit.cover),
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -491,6 +638,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   }
 
   Widget _buildCastSection(Color accent) {
+    if (_cast.isEmpty) return const SizedBox();
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -498,26 +647,28 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         const SizedBox(height: 20),
         SizedBox(
           height: 110,
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _castFuture,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const SizedBox();
-              final cast = snapshot.data!;
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: cast.length > 10 ? 10 : cast.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 20),
-                    child: Column(
-                      children: [
-                        CircleAvatar(radius: 30, backgroundColor: const Color(0xFFF4F4EC), backgroundImage: cast[index]['profile_path'] != null ? NetworkImage('https://image.tmdb.org/t/p/w200${cast[index]['profile_path']}') : null),
-                        const SizedBox(height: 8),
-                        Text(cast[index]['name'].toString().toUpperCase().split(' ').first, style: const TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold)),
-                      ],
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _cast.length > 10 ? 10 : _cast.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 30, 
+                      backgroundColor: const Color(0xFFF4F4EC), 
+                      backgroundImage: _cast[index]['profile_path'] != null 
+                          ? NetworkImage('https://image.tmdb.org/t/p/w200${_cast[index]['profile_path']}') 
+                          : null,
+                      child: _cast[index]['profile_path'] == null 
+                          ? const Icon(Icons.person, color: Color(0xFF111111))
+                          : null,
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    Text(_cast[index]['name'].toString().toUpperCase().split(' ').first, style: const TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               );
             },
           ),

@@ -235,7 +235,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         },
       ),
-    ).then((_) => setState(() => _isPopupOpen = false));
+    ).then((_) {
+      if (mounted) {
+        setState(() => _isPopupOpen = false);
+        _fetchCustomDialogues();
+      }
+    });
   }
 
   Future<void> _toggleDialogueRotationMode() async {
@@ -366,8 +371,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             DialogueHeroWidget(
               dialogue: _currentDialogue,
               onForgeTap: _showCustomDialogueForge,
-              onlyCustomDialogues: _onlyCustomDialogues,
-              onToggleRotationMode: _toggleDialogueRotationMode,
             ),
             const SizedBox(height: 8),
             // 2. QUICK ACCESS

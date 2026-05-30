@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie_model.dart';
 import '../services/movie_service.dart';
 
@@ -31,6 +32,32 @@ class _CustomDialogueForgeSheetState extends State<CustomDialogueForgeSheet> {
   bool _isSearching = false;
   Timer? _searchDebounce;
   int? _selectedTmdbId;
+  bool _onlyCustomDialogues = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRotationSetting();
+  }
+
+  Future<void> _loadRotationSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _onlyCustomDialogues = prefs.getBool('onlyCustomDialogues') ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleRotationSetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onlyCustomDialogues', value);
+    if (mounted) {
+      setState(() {
+        _onlyCustomDialogues = value;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -314,6 +341,63 @@ class _CustomDialogueForgeSheetState extends State<CustomDialogueForgeSheet> {
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+
+              // --- ROTATION SETTING TOGGLE ---
+              _buildSectionHeader("DIALOGUE ROTATION MODE"),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () => _toggleRotationSetting(!_onlyCustomDialogues),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4EC),
+                    border: Border.all(color: const Color(0xFF111111), width: 2.0),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: _onlyCustomDialogues ? const Color(0xFFD32F2F) : Colors.transparent,
+                          border: Border.all(color: const Color(0xFF111111), width: 2.0),
+                        ),
+                        child: _onlyCustomDialogues
+                            ? const Icon(Icons.check, color: Color(0xFFF4F4EC), size: 14)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              "ONLY SHOW MY FORGED DIALOGUES",
+                              style: TextStyle(
+                                color: Color(0xFF111111),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "TICK TO DISABLE CLASSIC SHUFFLING",
+                              style: TextStyle(
+                                color: Color(0xFF888882),
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
 
               // --- FORGE ACTION BUTTON ---
@@ -563,21 +647,36 @@ class _CustomDialogueForgeSheetState extends State<CustomDialogueForgeSheet> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Expanded(
+                 Expanded(
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      quoteText,
-                      style: const TextStyle(
-                        color: Color(0xFF111111),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        height: 0.95,
-                        fontFamily: 'Impact',
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
+                    child: Builder(
+                      builder: (context) {
+                        double previewFontSize = 14.0;
+                        if (quoteText.length > 120) {
+                          previewFontSize = 8.5;
+                        } else if (quoteText.length > 80) {
+                          previewFontSize = 10.0;
+                        } else if (quoteText.length > 50) {
+                          previewFontSize = 11.5;
+                        } else if (quoteText.length > 30) {
+                          previewFontSize = 12.8;
+                        }
+
+                        return Text(
+                          quoteText,
+                          style: TextStyle(
+                            color: const Color(0xFF111111),
+                            fontSize: previewFontSize,
+                            fontWeight: FontWeight.w900,
+                            height: 0.95,
+                            fontFamily: 'Impact',
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
                   ),
                 ),

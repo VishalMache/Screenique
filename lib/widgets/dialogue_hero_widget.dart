@@ -4,15 +4,11 @@ import '../data/dialogues_data.dart';
 class DialogueHeroWidget extends StatelessWidget {
   final MovieDialogue dialogue;
   final VoidCallback onForgeTap;
-  final bool onlyCustomDialogues;
-  final VoidCallback onToggleRotationMode;
 
   const DialogueHeroWidget({
     super.key,
     required this.dialogue,
     required this.onForgeTap,
-    required this.onlyCustomDialogues,
-    required this.onToggleRotationMode,
   });
 
   @override
@@ -158,18 +154,34 @@ class DialogueHeroWidget extends StatelessWidget {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        dialogue.quote.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF111111),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          height: 0.95,
-                          fontFamily: 'Impact',
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
+                      child: Builder(
+                        builder: (context) {
+                          final String quoteText = dialogue.quote.toUpperCase();
+                          double fontSize = 18.0;
+                          if (quoteText.length > 120) {
+                            fontSize = 11.0;
+                          } else if (quoteText.length > 80) {
+                            fontSize = 13.0;
+                          } else if (quoteText.length > 50) {
+                            fontSize = 15.0;
+                          } else if (quoteText.length > 30) {
+                            fontSize = 16.5;
+                          }
+
+                          return Text(
+                            quoteText,
+                            style: TextStyle(
+                              color: const Color(0xFF111111),
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w900,
+                              height: 0.95,
+                              fontFamily: 'Impact',
+                              letterSpacing: -0.3,
+                            ),
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -187,34 +199,6 @@ class DialogueHeroWidget extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-
-            // --- ROTATION MODE TOGGLE BUTTON ---
-            Positioned(
-              top: 12,
-              right: 76,
-              child: GestureDetector(
-                onTap: onToggleRotationMode,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: onlyCustomDialogues ? const Color(0xFFD32F2F) : const Color(0xFF111111),
-                    border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: onlyCustomDialogues ? const Color(0xFF111111) : const Color(0xFFD32F2F),
-                        offset: const Offset(2, 2),
-                      )
-                    ],
-                  ),
-                  child: Icon(
-                    onlyCustomDialogues ? Icons.person_pin_rounded : Icons.shuffle_rounded,
-                    color: const Color(0xFFF4F4EC),
-                    size: 18,
-                  ),
-                ),
               ),
             ),
 
