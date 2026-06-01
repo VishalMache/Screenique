@@ -98,7 +98,7 @@ class MovieModel {
     }
 
     return MovieModel(
-      id: json['id'] is String ? int.parse(json['id']) : (json['id'] ?? 0),
+      id: json['id'] is String ? int.parse(json['id']) : (json['id'] != null ? json['id'] : (json['movieId'] != null ? int.tryParse(json['movieId'].toString()) ?? 0 : 0)),
       title: json['title'] ?? json['name'] ?? 'Unknown',
       overview: json['overview'] ?? json['biography'] ?? '',
       isPerson: isPersonType,

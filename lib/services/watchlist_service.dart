@@ -108,22 +108,19 @@ class WatchlistService {
     });
   }
 
-  Future<void> toggleBroadcastLike(String docId, String userId) async {
+  Future<bool> toggleBroadcastLike(String docId, String userId, bool isCurrentlyLiked) async {
     final docRef = _firestore.collection('community_recs').doc(docId);
-
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      if (!snapshot.exists) return;
-
-      final data = snapshot.data() as Map<String, dynamic>;
-      final List likes = data['likes'] ?? [];
-
-      transaction.update(docRef, {
-        'likes': likes.contains(userId)
+    try {
+      await docRef.update({
+        'likes': isCurrentlyLiked
             ? FieldValue.arrayRemove([userId])
             : FieldValue.arrayUnion([userId]),
       });
-    });
+      return true;
+    } catch (e) {
+      debugPrint("Error toggling like: $e");
+      return false;
+    }
   }
 
   Future<void> deleteBroadcast(String docId) async {

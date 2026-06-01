@@ -1,0 +1,145 @@
+# Screenique: Comprehensive System Documentation
+
+> "Your very own gift for yourself."
+
+Screenique is a premium, cinematic mobile application built with Flutter. It abandons the sterile, modern corporate design trends in favor of a raw, brutalist, and highly aesthetic vintage film tracker. It is designed not just to track what you watch, but to serve as a personal, stylized "dossier" of your cinematic journey.
+
+This document serves as the complete architectural, functional, and design manifesto for the Screenique platform.
+
+---
+
+## 1. Design Philosophy & Aesthetics
+
+Screenique's visual identity is heavily inspired by vintage cinema, film archives, and brutalist typography. 
+- **Color Palette:**
+  - **Noir (True Black):** `#111111` - Used for heavy borders, deep backgrounds, and primary text.
+  - **Crimson (Film Red):** `#D32F2F` or `#C62828` - Used for primary accents, "Editor's Pick" banners, and interactive highlights.
+  - **Archival Paper (Off-White):** `#F4F4EC` - The primary background color, simulating vintage paper or projection screens.
+- **Typography:** Heavy use of monospace fonts for data (like runtimes and budgets) and bold, tight-tracking serif/impact fonts for titles to simulate old movie posters and editorial magazines.
+- **Visual Effects:** 
+  - Dynamic film grain overlays.
+  - Custom CRT scanline effects.
+  - Blur shaders on backdrop images.
+  - Shimmer effects acting as "Projector Beams".
+  - Rolling credits backgrounds in menus.
+- **Micro-Interactions:** Heavy and light haptic feedback integrated throughout using `HapticFeedback` to make button presses feel mechanical and tactile.
+
+---
+
+## 2. Core Features & User Flows
+
+### A. The Home Screen (The Hub)
+The central command center of the app, featuring:
+- **Dialogue Hero Deck:** A rotating carousel of iconic cinematic quotes (e.g., *Fight Club*, *Blade Runner*). Users can forge their own quotes and lock the rotation to only show their personal entries.
+- **Editor's Archival Pick:** A dynamically fetched, smart recommendation engine based on TMDB trending data, presented with a stylized "refresh required" aesthetic.
+- **Rolling Credits:** A background animation simulating movie credits, dynamically populated with the user's watched history and iconic real-world filmmakers.
+- **Hardware Integration (Shake-to-Shuffle):** Utilizing the device's accelerometer (`sensors_plus`), users can physically shake their phone to randomly select and open a movie from their un-watched watchlist.
+
+### B. Global Search & Quick Add
+- A floating "Quick Add" action button triggers a brutalist modal overlay.
+- Users can search the TMDB database in real-time.
+- The search engine is context-aware and intelligently distinguishes between **Films**, **Series**, and **People (Directors/Actors)**.
+
+### C. Media Dossier (Movie Details Screen)
+A highly detailed, editorial-style breakdown of a film or series:
+- **Atmospheric Backdrop:** The TMDB backdrop is rendered with a saturation-drained, heavy blur gradient mask.
+- **Technical Manifest:** Displays raw data in a grid (Length, Budget, Revenue, Status, Origin).
+- **Interactive Actions:**
+  - **Mark Watched:** Opens a bottom sheet to rate (1-5 stars) and add a personal review/note.
+  - **Bookmark:** Toggles the media into the user's Watchlist.
+  - **Broadcast:** Transmits the media to the global Cinecast community feed.
+- **Spotlight Pin:** A star icon allows users to pin the movie to their "Top 5 Spotlight" on their profile.
+
+### D. Director / Actor Profiles
+When a person is searched or tapped:
+- Displays their origin, biography, and a grid of their directed/acted filmography.
+- Fetches detailed crew credits using TMDB's person endpoints.
+
+### E. The User Profile (Personal Dossier)
+The user's personal archive dashboard:
+- **Archive Rank:** A dynamic title and color badge based on the total number of logged films (e.g., Novice Observer, Film Enthusiast, Senior Archivist, Master Cinephile, Legendary Producer).
+- **Top 5 Cinematic Spotlight:** A horizontal carousel of the user's all-time favorite, hand-picked films.
+- **Reel Archive:** A grid view of all watched films and series, with visual indicators distinguishing TV shows from movies.
+
+### F. Cinecast (Community Broadcast Wire)
+A global social feed for film recommendations:
+- Users broadcast "Transmissions" attaching a movie and a "Reason for Recommendation".
+- The UI mimics a specialized social feed (similar to X/Twitter or LinkedIn, but cinematic).
+- **Global Likes:** Any authenticated user can like a broadcast, updating the global like counter in real-time.
+- **Deep Linking:** Tapping the media card in a broadcast takes the user directly to the detailed dossier for that film to easily add it to their own watchlist.
+
+### G. Best Experience Hub
+A specialized module to log physical, real-world cinema experiences:
+- Users can document when and where they watched a film.
+- Features fields for **Cinema Name**, **Companions**, and uploading a **Ticket Image**.
+
+### H. System Preferences (Settings)
+- **Data Export:** A built-in PDF generator (`pdf` package) compiles the user's entire watched history into a formatted "Screenique Cinema Dossier" document and shares it via the native OS share sheet.
+- **Cache Management:** Ability to purge local API caches.
+- **Journey Reset:** A destructive option to wipe all Firestore data for the user.
+- **Display Name Revision:** Update the globally visible archivist handle.
+
+---
+
+## 3. Architecture & Tech Stack
+
+### Framework & Packages
+- **Framework:** Flutter (Dart)
+- **State & Lifecycle:** Primarily `StatefulWidget` and `StreamBuilder` for reactive UI.
+- **Backend:** Firebase (Auth, Firestore)
+- **APIs:** TMDB API (The Movie Database)
+- **Key Plugins:**
+  - `firebase_core`, `firebase_auth`, `cloud_firestore`
+  - `shared_preferences` (Local settings caching)
+  - `sensors_plus` (Shake-to-shuffle mechanic)
+  - `pdf` & `share_plus` (Dossier export and sharing)
+
+### Data Models
+- `MovieModel`: The central data structure. Unifies TMDB JSON responses into a single object that handles Films, Series, and People. It includes fields for local database states (e.g., `personalNote`, `watchedDate`, `broadcastReason`, `senderRankCount`).
+- `MovieDialogue`: Represents the quotes shown in the Hero Deck.
+
+### Firestore Database Schema
+The app uses a NoSQL document structure optimized for fast reads and secure rules.
+
+**1. Users Collection (`/users/{uid}`)**
+- Document contains: `name`, `email`, `createdAt`.
+- **Subcollection: `movies/{movieId}`**
+  - Contains watched/watchlist items.
+  - Fields: `status` ('watched' or 'watchlist'), `title`, `posterPath`, `userRating`, `personalNote`, `isTvShow`, `timestamp`.
+- **Subcollection: `top_five/{movieId}`**
+  - Contains the user's spotlighted movies.
+- **Subcollection: `custom_dialogues/{autoId}`**
+  - Contains user-forged quotes.
+
+**2. Community Feed Collection (`/community_recs/{autoId}`)**
+- Global feed of broadcasts.
+- Fields: `movieId`, `title`, `posterPath`, `senderId`, `senderName`, `reason`, `isTvShow`, `senderRankCount`, `likes` (Array of UIDs), `timestamp`.
+
+### Security Rules
+Firestore rules are strictly enforced:
+- **User Data:** `read, write` restricted entirely to `request.auth.uid == userId`.
+- **Community Feed:** `read, create` allowed for any authenticated user. `update` (for likes) allowed for any authenticated user. `delete` restricted to `senderId`.
+
+---
+
+## 4. API & Data Flow
+
+### TMDB Integration (`MovieService`)
+- Implements layered fetching: Search, Details, Cast, and Smart Recommendations.
+- Utilizes an aggressive **Local Cache Map** in RAM to prevent redundant API calls when quickly navigating back and forth between screens, improving UI responsiveness and saving bandwidth.
+- Gracefully falls back to UI error states or empty containers if network failures occur, using `errorBuilder` on all `Image.network` calls to prevent "Red Screen" crashes.
+
+### Reactive UI (`WatchlistService`)
+- Uses `StreamBuilder` extensively in `profile_screen.dart` and `broadcast_wire_screen.dart` to listen to Firestore snapshots in real-time. When a user marks a movie as watched, it immediately reflects across their profile and removes it from the un-watched tabs without requiring a manual refresh.
+
+---
+
+## 5. Known Design Patterns
+
+- **Fallback Gracefulness:** Heavy reliance on `.isNotEmpty`, null-aware operators (`??`), and `errorBuilder` to ensure the app never crashes on missing API data (e.g., a movie with no poster, or a director with no biography).
+- **The "Rank" System:** Built directly into the UI layers, calculating purely off the count of the user's `movies` subcollection where `status == 'watched'`.
+- **Stateless/Stateful Segregation:** Modals and bottom sheets are cleanly separated into distinct functions (e.g., `_showLogWatchedDialog`, `_showEditSpotlight`) keeping the `build` methods relatively flat despite the complex UI.
+
+---
+
+*End of Documentation. Screenique System v2.0.0*

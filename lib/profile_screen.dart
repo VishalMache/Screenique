@@ -16,6 +16,13 @@ class ProfileScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final String? uid = user?.uid;
 
+    if (uid == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF4F4EC),
+        body: Center(child: Text("Authentication required.")),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4EC),
       extendBodyBehindAppBar: true,
@@ -199,7 +206,11 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(2),
-                          child: Image.network(movie.posterPath, fit: BoxFit.cover),
+                          child: Image.network(
+                            movie.posterPath, 
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111)),
+                          ),
                         ),
                       ),
                       if (movie.isTvShow)
@@ -341,7 +352,16 @@ class ProfileScreen extends StatelessWidget {
                       return ListTile(
                         leading: Container(
                           decoration: BoxDecoration(border: Border.all(color: const Color(0xFF111111), width: 1)),
-                          child: ClipRRect(borderRadius: BorderRadius.circular(2), child: Image.network(movie.posterPath, width: 40, height: 60, fit: BoxFit.cover)),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2), 
+                            child: Image.network(
+                              movie.posterPath, 
+                              width: 40, 
+                              height: 60, 
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(width: 40, height: 60, color: const Color(0xFF111111)),
+                            )
+                          ),
                         ),
                         title: Text(movie.title.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.bold)),
                         subtitle: Text(movie.isTvShow ? "SERIES" : "FILM", style: TextStyle(color: movie.isTvShow ? const Color(0xFF111111) : const Color(0xFF454545), fontSize: 8)),

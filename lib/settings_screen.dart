@@ -12,18 +12,17 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../services/auth_service.dart';
 import '../../services/watchlist_service.dart';
 import '../../services/movie_service.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'profile_screen.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> {
   Color get bgColor => Theme.of(context).scaffoldBackgroundColor;
   Color get noirColor => Theme.of(context).primaryColor;
   Color get accentColor => Theme.of(context).hintColor;

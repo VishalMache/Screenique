@@ -32,7 +32,19 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
     super.dispose();
   }
 
-
+  String _formatTimeAgo(Timestamp? timestamp) {
+    if (timestamp == null) return "Just now";
+    final now = DateTime.now();
+    final date = timestamp.toDate();
+    final diff = now.difference(date);
+    
+    if (diff.inDays > 365) return "${(diff.inDays / 365).floor()}y";
+    if (diff.inDays > 30) return "${(diff.inDays / 30).floor()}mo";
+    if (diff.inDays > 0) return "${diff.inDays}d";
+    if (diff.inHours > 0) return "${diff.inHours}h";
+    if (diff.inMinutes > 0) return "${diff.inMinutes}m";
+    return "Just now";
+  }
 
   void _confirmBroadcastDeletion(String docId) {
     showDialog(
@@ -517,180 +529,282 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
               final String rankName = ArchiveRank.getTitle(movie.senderRankCount ?? 0);
               final String reason = movie.broadcastReason ?? 'No reason provided.';
 
+              final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+              final String timeAgo = _formatTimeAgo(timestamp);
+
               return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F4EC),
-                  border: Border.all(color: const Color(0xFF111111), width: 2.0),
-                  boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
-                ),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Poster on Left
-                      GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)),
-                        ),
-                        child: Container(
-                          width: 100,
+                margin: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: Avatar, Name, Rank, Time
+                    Row(
+                      children: [
+                        // Avatar Initial
+                        Container(
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            border: const Border(right: BorderSide(color: Color(0xFF111111), width: 2.0)),
-                            image: DecorationImage(
-                              image: NetworkImage(
-                                movie.posterPath.replaceAll('image.tmdb.org', 'images.tmdb.org'),
+                            color: rankColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              (movie.broadcastSender != null && movie.broadcastSender!.isNotEmpty)
+                                  ? movie.broadcastSender![0].toUpperCase()
+                                  : "A",
+                              style: const TextStyle(
+                                color: Color(0xFFF4F4EC),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'Impact',
                               ),
-                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
-                      ),
-                      
-                      // Details on Right
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
+                        const SizedBox(width: 10),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Rank Verified Badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: rankColor.withOpacity(0.15),
-                                  border: Border.all(color: rankColor, width: 1.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.verified_user_rounded, color: rankColor, size: 8),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        "${movie.broadcastSender ?? "ANONYMOUS"}  •  $rankName".toUpperCase(),
-                                        style: TextStyle(color: rankColor, fontSize: 7, fontWeight: FontWeight.w900, letterSpacing: 1),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              
-                              // Movie Title
-                              GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)),
-                                ),
-                                child: Text(
-                                  movie.title.toUpperCase(),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF111111),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                    fontFamily: 'Impact',
-                                    letterSpacing: 0.5,
-                                    height: 1.1,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              
-                              // Quote Reason
-                              GestureDetector(
-                                onTap: () => _showFullTransmission(movie, reason, rankColor),
-                                child: RichText(
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  text: TextSpan(
-                                    style: const TextStyle(color: Color(0xFF454545), fontSize: 10.5, height: 1.35, fontStyle: FontStyle.italic, fontFamily: 'serif'),
-                                    children: [
-                                      TextSpan(text: "\"$reason\""),
-                                      if (reason.length > 70)
-                                        const TextSpan(text: " more..", style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.bold, fontStyle: FontStyle.normal)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              const SizedBox(height: 12),
-                              
-                              // Actions Row
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  // Real-time Like Trigger
-                                  StreamBuilder<DocumentSnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('community_recs')
-                                        .doc(docId)
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      if (!snapshot.hasData) {
-                                        return const SizedBox(height: 20, width: 20);
-                                      }
-                                      final docData = snapshot.data!.data() as Map<String, dynamic>?;
-                                      final List likes = docData?['likes'] ?? [];
-                                      final bool isLiked = likes.contains(currentUserId);
-                                      
-                                      return GestureDetector(
-                                        onTap: () {
-                                          HapticFeedback.lightImpact();
-                                          _watchlistService.toggleBroadcastLike(docId, currentUserId);
-                                        },
-                                        child: Container(
-                                          color: Colors.transparent,
-                                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                                color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                likes.length.toString(),
-                                                style: TextStyle(
-                                                  color: isLiked ? const Color(0xFF111111) : const Color(0xFF454545),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                  Text(
+                                    (movie.broadcastSender ?? "ANONYMOUS").toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Color(0xFF111111),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      fontFamily: 'Impact',
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
-                                  
-                                  // Delete / Report Button
-                                  isOwner
-                                      ? IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () => _confirmBroadcastDeletion(docId),
-                                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF111111), size: 18),
-                                        )
-                                      : IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () => _showReportDialog(docId),
-                                          icon: const Icon(Icons.flag_outlined, color: Color(0xFF111111), size: 18),
-                                        ),
+                                  const SizedBox(width: 6),
+                                  // Time Ago
+                                  Text(
+                                    "• $timeAgo",
+                                    style: const TextStyle(
+                                      color: Color(0xFF888882),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              // Rank Badge
+                              Row(
+                                children: [
+                                  Icon(Icons.verified_user_rounded, color: rankColor, size: 10),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    rankName.toUpperCase(),
+                                    style: TextStyle(
+                                      color: rankColor,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Media Preview Card WITH Review inside
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)),
                       ),
-                    ],
-                  ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F4EC),
+                          border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Poster on the left
+                            Image.network(
+                              movie.posterPath.replaceAll('image.tmdb.org', 'images.tmdb.org'),
+                              width: 100,
+                              height: 150,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(
+                                width: 100, height: 150, color: const Color(0xFF111111)
+                              ),
+                            ),
+                            // Details & Review on the right
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // The Review (Reason)
+                                  GestureDetector(
+                                    onTap: () => _showFullTransmission(movie, reason, rankColor),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      width: double.infinity,
+                                      decoration: const BoxDecoration(
+                                        border: Border(bottom: BorderSide(color: Color(0xFF111111), width: 1.5)),
+                                        color: Color(0xFFFFFFFF),
+                                      ),
+                                      child: Text(
+                                        reason,
+                                        maxLines: 4,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF111111),
+                                          fontSize: 12,
+                                          height: 1.4,
+                                          fontWeight: FontWeight.w600,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  // Movie details
+                                  Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          movie.title.toUpperCase(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Color(0xFF111111),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            fontFamily: 'Impact',
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate,
+                                          style: const TextStyle(
+                                            color: Color(0xFF888882),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        if (movie.director != null && movie.director!.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "DIR: ${movie.director}".toUpperCase(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Color(0xFF454545),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ]
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Action Bar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Likes
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('community_recs')
+                              .doc(docId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const SizedBox(height: 30, width: 60);
+                            }
+                            final docData = snapshot.data!.data() as Map<String, dynamic>?;
+                            final List likes = docData?['likes'] ?? [];
+                            final bool isLiked = likes.contains(currentUserId);
+                            
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () async {
+                                HapticFeedback.lightImpact();
+                                final success = await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
+                                if (!success && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Action blocked. Check your Firestore Rules!"),
+                                      backgroundColor: Color(0xFFD32F2F),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                color: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                      color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      likes.length.toString(),
+                                      style: TextStyle(
+                                        color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        // Delete / Report
+                        isOwner
+                            ? IconButton(
+                                onPressed: () => _confirmBroadcastDeletion(docId),
+                                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
+                                splashRadius: 20,
+                              )
+                            : IconButton(
+                                onPressed: () => _showReportDialog(docId),
+                                icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
+                                splashRadius: 20,
+                              ),
+                      ],
+                    ),
+                    
+                    // Divider
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Divider(color: Color(0xFFE0E0DB), thickness: 1.5),
+                    ),
+                  ],
                 ),
               );
             },
