@@ -16,18 +16,22 @@ class WorldCinemaService {
   final Map<String, List<Map<String, dynamic>>> _directorCache = {};
   final Map<String, List<Map<String, dynamic>>> _actorCache = {};
   
-  Future<List<MovieModel>> getTopFilmsByCountry(String iso) async {
-    if (_movieCache.containsKey(iso)) return _movieCache[iso]!;
+  Future<List<MovieModel>> getTopFilmsByCountry(String iso, {String? languageFilter}) async {
+    final cacheKey = languageFilter != null ? '${iso}_$languageFilter' : iso;
+    if (_movieCache.containsKey(cacheKey)) return _movieCache[cacheKey]!;
     
     try {
-      final response = await http.get(Uri.parse(
-        '$_baseUrl/discover/movie?api_key=$_apiKey&with_origin_country=$iso&sort_by=vote_count.desc'
-      )).timeout(const Duration(seconds: 5));
+      String url = '$_baseUrl/discover/movie?api_key=$_apiKey&with_origin_country=$iso&sort_by=vote_count.desc&vote_count.gte=100';
+      if (languageFilter != null) {
+        url += '&with_original_language=$languageFilter';
+      }
+      
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
         final List results = json.decode(response.body)['results'] ?? [];
         final movies = results.map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': 'movie', 'originCountry': iso})).toList();
-        _movieCache[iso] = movies;
+        _movieCache[cacheKey] = movies;
         return movies;
       }
     } catch (e) {
@@ -36,18 +40,22 @@ class WorldCinemaService {
     return [];
   }
 
-  Future<List<MovieModel>> getTopTvByCountry(String iso) async {
-    if (_tvCache.containsKey(iso)) return _tvCache[iso]!;
+  Future<List<MovieModel>> getTopTvByCountry(String iso, {String? languageFilter}) async {
+    final cacheKey = languageFilter != null ? '${iso}_$languageFilter' : iso;
+    if (_tvCache.containsKey(cacheKey)) return _tvCache[cacheKey]!;
     
     try {
-      final response = await http.get(Uri.parse(
-        '$_baseUrl/discover/tv?api_key=$_apiKey&with_origin_country=$iso&sort_by=vote_count.desc'
-      )).timeout(const Duration(seconds: 5));
+      String url = '$_baseUrl/discover/tv?api_key=$_apiKey&with_origin_country=$iso&sort_by=vote_count.desc&vote_count.gte=50';
+      if (languageFilter != null) {
+        url += '&with_original_language=$languageFilter';
+      }
+      
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
         final List results = json.decode(response.body)['results'] ?? [];
         final shows = results.map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': 'tv', 'originCountry': iso})).toList();
-        _tvCache[iso] = shows;
+        _tvCache[cacheKey] = shows;
         return shows;
       }
     } catch (e) {

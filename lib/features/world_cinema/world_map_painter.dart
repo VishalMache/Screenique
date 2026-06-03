@@ -73,11 +73,13 @@ class GeoJsonParser {
 class WorldMapPainter extends CustomPainter {
   final Map<String, Path> countryPaths;
   final Set<String> exploredCountries;
+  final Set<String> highlightedCountries;
   final String? activeCountry; // Currently tapped/highlighted
   
   WorldMapPainter({
     required this.countryPaths,
     required this.exploredCountries,
+    this.highlightedCountries = const {},
     this.activeCountry,
   });
 
@@ -121,29 +123,38 @@ class WorldMapPainter extends CustomPainter {
         if (iso == activeCountry) {
           // Tapped state
           fillPaint.color = const Color(0xFF111111);
+        } else if (highlightedCountries.contains(iso)) {
+          // Language filter highlighted state (Vintage Gold)
+          fillPaint.color = const Color(0xFFFFB300);
         } else if (exploredCountries.contains(iso)) {
           // Explored stamp state
           fillPaint.color = const Color(0x66D32F2F); // ~40% opacity red
         } else {
           // Unexplored state
-          fillPaint.color = const Color(0xFFD9D4C7);
+          // Dim the unexplored state slightly if a language is highlighted to make highlights pop
+          fillPaint.color = highlightedCountries.isNotEmpty 
+              ? const Color(0xFFD9D4C7).withOpacity(0.5) 
+              : const Color(0xFFD9D4C7);
         }
         
         canvas.drawPath(path, fillPaint);
         
-        // If explored, draw a red border too
+        // If explored or highlighted, draw a colored border too
         if (exploredCountries.contains(iso) && iso != activeCountry) {
           borderPaint.color = const Color(0xFFD32F2F);
           borderPaint.strokeWidth = 1.0;
+        } else if (highlightedCountries.contains(iso) && iso != activeCountry) {
+          borderPaint.color = const Color(0xFFF57F17); // Darker gold outline
+          borderPaint.strokeWidth = 1.0;
         } else {
-          borderPaint.color = const Color(0xFF111111);
+          borderPaint.color = const Color(0xFF111111).withOpacity(highlightedCountries.isNotEmpty && !highlightedCountries.contains(iso) ? 0.3 : 1.0);
           borderPaint.strokeWidth = 0.5;
         }
         
         canvas.drawPath(path, borderPaint);
 
-        // 3. Draw Country Names (Only for explored or active to keep it clean)
-        if (exploredCountries.contains(iso) || iso == activeCountry) {
+        // 3. Draw Country Names (Only for explored, active, or highlighted to keep it clean)
+        if (exploredCountries.contains(iso) || iso == activeCountry || highlightedCountries.contains(iso)) {
           final bounds = path.getBounds();
           final center = bounds.center;
           
@@ -199,6 +210,7 @@ class WorldMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant WorldMapPainter oldDelegate) {
     return oldDelegate.exploredCountries != exploredCountries ||
+           oldDelegate.highlightedCountries != highlightedCountries ||
            oldDelegate.activeCountry != activeCountry;
   }
   

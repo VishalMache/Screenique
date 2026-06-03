@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'world_map_painter.dart';
 import '../../services/world_cinema_service.dart';
+import '../../data/cinematic_languages.dart';
 import 'country_dossier_sheet.dart';
 import 'country_search_sheet.dart';
 import 'dart:async';
@@ -18,7 +19,9 @@ class _WorldCinemaScreenState extends State<WorldCinemaScreen> {
   
   Map<String, Path> _countryPaths = {};
   Set<String> _exploredCountries = {};
+  Set<String> _highlightedCountries = {};
   String? _activeCountry;
+  String? _selectedLanguageCode;
   bool _isLoadingMap = true;
   
   // A standard map size to base our projection on.
@@ -104,13 +107,34 @@ class _WorldCinemaScreenState extends State<WorldCinemaScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CountryDossierSheet(isoCode: iso),
-    ).then((_) {
-      // When closed, refresh explored stats in case they added a movie, and clear active
-      _refreshExploredStats();
-      if (mounted) setState(() => _activeCountry = null);
-    });
-  }
+        builder: (context) => CountryDossierSheet(
+          isoCode: iso, 
+          languageFilter: _selectedLanguageCode,
+        ),
+      ).then((_) {
+        // When closed, refresh explored stats in case they added a movie, and clear active
+        _refreshExploredStats();
+        if (mounted) setState(() => _activeCountry = null);
+      });
+    }
+
+    void _selectLanguage(String? code) {
+      setState(() {
+        if (_selectedLanguageCode == code) {
+          // Deselect
+          _selectedLanguageCode = null;
+          _highlightedCountries.clear();
+        } else {
+          _selectedLanguageCode = code;
+          if (code != null) {
+            final langData = CinematicLanguages.languages.firstWhere((l) => l['code'] == code);
+            _highlightedCountries = Set<String>.from(langData['countries'] as List);
+          } else {
+            _highlightedCountries.clear();
+          }
+        }
+      });
+    }
   
   Future<void> _refreshExploredStats() async {
     final explored = await _service.getExploredCountries();
@@ -144,6 +168,7 @@ class _WorldCinemaScreenState extends State<WorldCinemaScreen> {
                           painter: WorldMapPainter(
                             countryPaths: _countryPaths,
                             exploredCountries: _exploredCountries,
+                            highlightedCountries: _highlightedCountries,
                             activeCountry: _activeCountry,
                           ),
                         ),
@@ -196,6 +221,52 @@ class _WorldCinemaScreenState extends State<WorldCinemaScreen> {
                           const Icon(Icons.public, color: Color(0xFF111111), size: 20),
                         ],
                       ),
+                    ),
+                  ),
+                ),
+                
+                // 3. Language Pills
+                Positioned(
+                  bottom: 90, // Above the close button
+                  left: 0,
+                  right: 0,
+                  child: SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: CinematicLanguages.languages.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final lang = CinematicLanguages.languages[index];
+                        final isSelected = _selectedLanguageCode == lang['code'];
+                        return GestureDetector(
+                          onTap: () => _selectLanguage(lang['code']),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF111111) : const Color(0xFFF4F4EC),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                              boxShadow: isSelected 
+                                  ? const [BoxShadow(color: Color(0xFFFFB300), offset: Offset(2, 2))]
+                                  : const [BoxShadow(color: Color(0xFF111111), offset: Offset(2, 2))],
+                            ),
+                            child: Center(
+                              child: Text(
+                                lang['name'].toString().toUpperCase(),
+                                style: TextStyle(
+                                  color: isSelected ? const Color(0xFFF4F4EC) : const Color(0xFF111111),
+                                  fontFamily: 'Impact',
+                                  fontSize: 14,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

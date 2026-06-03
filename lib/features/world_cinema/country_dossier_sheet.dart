@@ -10,7 +10,13 @@ import '../../data/curated_directors.dart';
 
 class CountryDossierSheet extends StatefulWidget {
   final String isoCode;
-  const CountryDossierSheet({super.key, required this.isoCode});
+  final String? languageFilter;
+  
+  const CountryDossierSheet({
+    super.key, 
+    required this.isoCode,
+    this.languageFilter,
+  });
 
   @override
   State<CountryDossierSheet> createState() => _CountryDossierSheetState();
@@ -40,8 +46,8 @@ class _CountryDossierSheetState extends State<CountryDossierSheet> {
     
     // Fire all fetchers in parallel
     Future.wait([
-      _service.getTopFilmsByCountry(widget.isoCode),
-      _service.getTopTvByCountry(widget.isoCode),
+      _service.getTopFilmsByCountry(widget.isoCode, languageFilter: widget.languageFilter),
+      _service.getTopTvByCountry(widget.isoCode, languageFilter: widget.languageFilter),
       _service.getWatchedCountForCountry(widget.isoCode),
     ]).then((results) {
       if (!mounted) return;
