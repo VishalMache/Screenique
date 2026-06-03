@@ -433,6 +433,383 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
     );
   }
 
+  // ────────────────────────────────────────────────────────
+  // PLAYLIST FEED CARD
+  // ────────────────────────────────────────────────────────
+
+  void _showPlaylistDetailSheet(Map<String, dynamic> data) {
+    final List<String> titles = List<String>.from(data['movieTitles'] ?? []);
+    final List<String> posters = List<String>.from(data['posterPaths'] ?? []);
+    final String playlistName = data['playlistName'] ?? 'Untitled Playlist';
+    final String reason = data['reason'] ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF4F4EC),
+            border: Border(top: BorderSide(color: Color(0xFF111111), width: 3)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(height: 4, width: 40, color: const Color(0xFF111111)),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('PLAYLIST', style: TextStyle(color: Color(0xFFD32F2F), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    const SizedBox(height: 4),
+                    Text(
+                      playlistName.toUpperCase(),
+                      style: const TextStyle(color: Color(0xFF111111), fontSize: 20, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 1),
+                    ),
+                    if (reason.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '"$reason"',
+                        style: const TextStyle(color: Color(0xFF454545), fontSize: 12, fontStyle: FontStyle.italic, height: 1.4),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      '${titles.length} TITLE${titles.length == 1 ? '' : 'S'}',
+                      style: const TextStyle(color: Color(0xFF888882), fontSize: 10, letterSpacing: 2),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(height: 1.5, color: const Color(0xFF111111)),
+              Expanded(
+                child: titles.isEmpty
+                    ? const Center(
+                        child: Text('No titles listed.', style: TextStyle(color: Color(0xFF888882), fontSize: 11)),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
+                        itemCount: titles.length,
+                        itemBuilder: (_, i) {
+                          final poster = i < posters.length ? posters[i] : null;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF4F4EC),
+                              border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                              boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(2, 2))],
+                            ),
+                            child: Row(
+                              children: [
+                                if (poster != null)
+                                  Image.network(
+                                    poster.replaceAll('image.tmdb.org', 'images.tmdb.org'),
+                                    width: 40,
+                                    height: 58,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(width: 40, height: 58, color: const Color(0xFF222222)),
+                                  )
+                                else
+                                  Container(width: 40, height: 58, color: const Color(0xFF222222)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    titles[i].toUpperCase(),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF111111),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      fontFamily: 'Impact',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistFeedCard({
+    required BuildContext context,
+    required Map<String, dynamic> data,
+    required String docId,
+    required bool isOwner,
+    required String currentUserId,
+  }) {
+    final String playlistName = data['playlistName'] ?? 'Untitled Playlist';
+    final List<String> posterPaths = List<String>.from(data['posterPaths'] ?? []);
+    final List<String> movieTitles = List<String>.from(data['movieTitles'] ?? []);
+    final String senderName = data['senderName'] ?? 'Anonymous';
+    final String reason = data['reason'] ?? '';
+    final int senderRankCount = data['senderRankCount'] ?? 0;
+    final Color rankColor = ArchiveRank.getColor(senderRankCount);
+    final String rankName = ArchiveRank.getTitle(senderRankCount);
+    final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+    final String timeAgo = _formatTimeAgo(timestamp);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Author Header ──
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: rankColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    senderName.isNotEmpty ? senderName[0].toUpperCase() : 'A',
+                    style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          senderName.toUpperCase(),
+                          style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('• $timeAgo', style: const TextStyle(color: Color(0xFF888882), fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.verified_user_rounded, color: rankColor, size: 10),
+                        const SizedBox(width: 4),
+                        Text(rankName.toUpperCase(), style: TextStyle(color: rankColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Playlist badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Text('📋 PLAYLIST', style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Playlist Card ──
+          GestureDetector(
+            onTap: () => _showPlaylistDetailSheet(data),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F4EC),
+                border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Horizontal poster strip
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: 90,
+                      child: _buildHorizontalPosterStrip(posterPaths),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Info
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF111111),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.queue_music_rounded, color: Color(0xFFF4F4EC), size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              playlistName.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Color(0xFF111111), fontSize: 15, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${movieTitles.length} TITLE${movieTitles.length == 1 ? '' : 'S'}  ·  TAP TO VIEW',
+                              style: const TextStyle(color: Color(0xFF888882), fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (reason.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBEBE4),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.format_quote_rounded, size: 14, color: Color(0xFF888882)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              reason,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Color(0xFF454545), fontSize: 12, fontStyle: FontStyle.italic, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Action Bar ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Likes
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('community_recs').doc(docId).snapshots(),
+                builder: (context, snap) {
+                  if (!snap.hasData) return const SizedBox(height: 30, width: 60);
+                  final docData = snap.data!.data() as Map<String, dynamic>?;
+                  final List likes = docData?['likes'] ?? [];
+                  final bool isLiked = likes.contains(currentUserId);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      HapticFeedback.lightImpact();
+                      await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            likes.length.toString(),
+                            style: TextStyle(
+                              color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Delete / Report
+              isOwner
+                  ? IconButton(
+                      onPressed: () => _confirmBroadcastDeletion(docId),
+                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
+                      splashRadius: 20,
+                    )
+                  : IconButton(
+                      onPressed: () => _showReportDialog(docId),
+                      icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
+                      splashRadius: 20,
+                    ),
+            ],
+          ),
+
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Divider(color: Color(0xFFE0E0DB), thickness: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalPosterStrip(List<String> posters) {
+    if (posters.isEmpty) {
+      return Container(
+        color: const Color(0xFF222222),
+        child: const Center(child: Icon(Icons.playlist_play_rounded, color: Color(0xFF444444), size: 48)),
+      );
+    }
+    
+    final displayCount = posters.length > 4 ? 4 : posters.length;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: List.generate(displayCount, (i) {
+        return Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: i < displayCount - 1 ? const Border(right: BorderSide(color: const Color(0xFF111111), width: 1.5)) : null,
+            ),
+            child: Image.network(
+              posters[i].replaceAll('image.tmdb.org', 'images.tmdb.org'),
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF222222)),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -521,10 +898,23 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
             itemBuilder: (context, index) {
               final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
-              final movie = MovieModel.fromJson(data);
               final bool isOwner = currentUserId == data['senderId'];
               final String docId = doc.id;
-              
+              final String type = data['type'] ?? 'movie';
+
+              // ── Playlist broadcast card ──
+              if (type == 'playlist') {
+                return _buildPlaylistFeedCard(
+                  context: context,
+                  data: data,
+                  docId: docId,
+                  isOwner: isOwner,
+                  currentUserId: currentUserId,
+                );
+              }
+
+              // ── Standard movie/song broadcast card ──
+              final movie = MovieModel.fromJson(data);
               final Color rankColor = ArchiveRank.getColor(movie.senderRankCount ?? 0);
               final String rankName = ArchiveRank.getTitle(movie.senderRankCount ?? 0);
               final String reason = movie.broadcastReason ?? 'No reason provided.';
@@ -623,97 +1013,88 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                         MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)),
                       ),
                       child: Container(
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF4F4EC),
                           border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
                         ),
-                        clipBehavior: Clip.antiAlias,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Poster on the left
-                            Image.network(
-                              movie.posterPath.replaceAll('image.tmdb.org', 'images.tmdb.org'),
-                              width: 100,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => Container(
-                                width: 100, height: 150, color: const Color(0xFF111111)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                movie.posterPath.replaceAll('image.tmdb.org', 'images.tmdb.org'),
+                                width: 80,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(
+                                  width: 80, height: 120, color: const Color(0xFF111111)
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 14),
                             // Details & Review on the right
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Text(
+                                    movie.title.toUpperCase(),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF111111),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                      fontFamily: 'Impact',
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "${movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate}${movie.director != null && movie.director!.isNotEmpty ? '  ·  DIR: ${movie.director!.toUpperCase()}' : ''}",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF888882),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
                                   // The Review (Reason)
                                   GestureDetector(
                                     onTap: () => _showFullTransmission(movie, reason, rankColor),
                                     child: Container(
-                                      padding: const EdgeInsets.all(12),
-                                      width: double.infinity,
-                                      decoration: const BoxDecoration(
-                                        border: Border(bottom: BorderSide(color: Color(0xFF111111), width: 1.5)),
-                                        color: Color(0xFFFFFFFF),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEBEBE4),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: Text(
-                                        reason,
-                                        maxLines: 4,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Color(0xFF111111),
-                                          fontSize: 12,
-                                          height: 1.4,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Movie details
-                                  Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          movie.title.toUpperCase(),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Color(0xFF111111),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w900,
-                                            fontFamily: 'Impact',
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate,
-                                          style: const TextStyle(
-                                            color: Color(0xFF888882),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        if (movie.director != null && movie.director!.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            "DIR: ${movie.director}".toUpperCase(),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Color(0xFF454545),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.format_quote_rounded, size: 14, color: Color(0xFF888882)),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              reason,
+                                              maxLines: 3,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Color(0xFF454545),
+                                                fontSize: 12,
+                                                height: 1.4,
+                                                fontStyle: FontStyle.italic,
+                                              ),
                                             ),
                                           ),
-                                        ]
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],

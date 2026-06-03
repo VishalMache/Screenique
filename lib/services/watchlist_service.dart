@@ -210,7 +210,8 @@ class WatchlistService {
     if (snapshot.docs.isEmpty) return null;
 
     final randomDoc = snapshot.docs[Random().nextInt(snapshot.docs.length)];
-    return MovieModel.fromJson(randomDoc.data() as Map<String, dynamic>);
+    return MovieModel.fromJson(randomDoc.data());
+
   }
 
   // ───────────────── UTILITIES ─────────────────
@@ -242,5 +243,118 @@ class WatchlistService {
     final user = _auth.currentUser;
     if (user == null) return;
     await _firestore.collection('users').doc(user.uid).collection('top_five').doc(movieId.toString()).delete();
+  }
+
+  // ───────────────── PLAYLISTS ─────────────────
+
+  /// Creates a new empty playlist and returns its generated document ID.
+  Future<String?> createPlaylist(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final docRef = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('playlists')
+        .add({
+      'name': name,
+      'createdAt': FieldValue.serverTimestamp(),
+      'movieIds': <int>[],
+    });
+
+    return docRef.id;
+  }
+
+  /// Renames an existing playlist.
+  Future<void> renamePlaylist(String playlistId, String newName) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('playlists')
+        .doc(playlistId)
+        .update({'name': newName});
+  }
+
+  /// Deletes a playlist document entirely.
+  Future<void> deletePlaylist(String playlistId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('playlists')
+        .doc(playlistId)
+        .delete();
+  }
+
+  /// Adds a movie ID to a playlist (no duplicates).
+  Future<void> addMovieToPlaylist(String playlistId, int movieId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('playlists')
+        .doc(playlistId)
+        .update({
+      'movieIds': FieldValue.arrayUnion([movieId]),
+    });
+  }
+
+  /// Removes a movie ID from a playlist.
+  Future<void> removeMovieFromPlaylist(String playlistId, int movieId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('playlists')
+        .doc(playlistId)
+        .update({
+      'movieIds': FieldValue.arrayRemove([movieId]),
+    });
+  }
+
+  /// Broadcasts a playlist to the community hub.
+  Future<void> broadcastPlaylist({
+    required String playlistName,
+    required List<MovieModel> movies,
+    required String reason,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? 'Anonymous';
+    final watchedCount = await getWatchedCount();
+
+    // Collect all posters for the playlist detail view
+    final List<String> posterPaths = movies
+        .map((m) => m.posterPath)
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    final List<String> movieTitles = movies.map((m) => m.title).toList();
+    final List<int> movieIds = movies.map((m) => m.id).toList();
+
+    await _firestore.collection('community_recs').add({
+      'type': 'playlist',
+      'playlistName': playlistName,
+      'movieIds': movieIds,
+      'movieTitles': movieTitles,
+      'posterPaths': posterPaths,
+      'reason': reason,
+      'senderId': user.uid,
+      'senderName': senderName,
+      'senderRankCount': watchedCount,
+      'timestamp': FieldValue.serverTimestamp(),
+      'likes': <String>[],
+    });
   }
 }

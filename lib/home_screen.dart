@@ -18,6 +18,7 @@ import '../features/movie_lists/watchlist_tab.dart';
 import '../features/movie_lists/watched_tab.dart';
 import '../features/experiences/add_experience_screen.dart';
 import '../features/experiences/experiences_tab.dart';
+import '../features/world_cinema/world_cinema_screen.dart';
 import 'widgets/recommendation_carousel.dart';
 import 'widgets/series_recommendation_carousel.dart';
 import 'widgets/dialogue_hero_widget.dart';
@@ -913,10 +914,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildNavIcon(Icons.bookmark_border_rounded, "WATCHLIST", () => _showCollectionOverlay(const WatchlistTab(), "WATCHLIST")),
-              _buildNavIcon(Icons.sensors_rounded, "CINECAST", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastWireScreen()))),
+              _buildNavIcon(Icons.public_rounded, "EXPLORE", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WorldCinemaScreen()))),
               const SizedBox(width: 40),
+              _buildNavIcon(Icons.sensors_rounded, "CINECAST", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastWireScreen()))),
               _buildNavIcon(Icons.confirmation_num_outlined, "HUB", () => _showCollectionOverlay(const ExperiencesTab(), "BEST EXPERIENCE HUB")),
-              _buildNavIcon(Icons.settings_outlined, "SETTINGS", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()))),
             ],
           ),
         ),

@@ -9,6 +9,7 @@ class MovieModel {
   final String releaseDate;
   final List<int> genreIds;
   final bool isTvShow;
+  final String? originCountry; // NEW: Origin Country for World Cinema map
 
   // NEW: Search & Profile Logic Fields
   final bool isPerson; // Distinguishes Director/Actor from Film
@@ -49,6 +50,7 @@ class MovieModel {
     required this.releaseDate,
     required this.genreIds,
     this.isTvShow = false,
+    this.originCountry,
     this.isPerson = false, // Default to false
     this.director,
     this.biography,
@@ -96,6 +98,21 @@ class MovieModel {
       );
       directorName = dir?['name'];
     }
+    // Extract origin country
+    String? parsedOriginCountry;
+    if (json['originCountry'] != null) {
+      parsedOriginCountry = json['originCountry'];
+    } else {
+      final List? originCountries = json['origin_country'] ?? json['production_countries'];
+      if (originCountries != null && originCountries.isNotEmpty) {
+        final firstCountry = originCountries.first;
+        if (firstCountry is String) {
+          parsedOriginCountry = firstCountry;
+        } else if (firstCountry is Map && firstCountry['iso_3166_1'] != null) {
+          parsedOriginCountry = firstCountry['iso_3166_1'];
+        }
+      }
+    }
 
     return MovieModel(
       id: json['id'] is String ? int.parse(json['id']) : (json['id'] != null ? json['id'] : (json['movieId'] != null ? int.tryParse(json['movieId'].toString()) ?? 0 : 0)),
@@ -115,6 +132,7 @@ class MovieModel {
       releaseDate: json['release_date'] ?? json['first_air_date'] ?? json['releaseDate'] ?? 'N/A',
       genreIds: List<int>.from(json['genre_ids'] ?? json['genreIds'] ?? []),
       isTvShow: isTv,
+      originCountry: parsedOriginCountry,
       director: directorName,
       ticketImageUrl: json['ticketImageUrl'],
       cinemaName: json['cinemaName'],
@@ -140,6 +158,7 @@ class MovieModel {
       'releaseDate': releaseDate,
       'genreIds': genreIds,
       'isTvShow': isTvShow,
+      'originCountry': originCountry,
       'director': director,
       'ticketImageUrl': ticketImageUrl,
       'cinemaName': cinemaName,

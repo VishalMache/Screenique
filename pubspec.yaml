@@ -36,6 +36,8 @@ dependencies:
   screenshot: ^3.0.0
   path_provider: ^2.1.2
   pdf: ^3.10.8
+  anthropic_sdk_dart: ^4.0.0
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -49,6 +51,8 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
+    - assets/world.geojson
     - assets/animations/Popcorn.json
     - assets/logo11.png
     - assets/logo12.png
