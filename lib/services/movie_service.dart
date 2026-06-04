@@ -13,10 +13,15 @@ class MovieService {
 
   static Map<String, dynamic>? _smartMovieCache;
   static Map<String, dynamic>? _smartSeriesCache;
+  static List<MovieModel>? _nowPlayingCache;
+  static List<MovieModel>? _upcomingCache;
+  static Set<int> get nowPlayingIds => _nowPlayingCache?.map((e) => e.id).toSet() ?? {};
 
   static Future<void> clearCache() async {
     _smartMovieCache = null;
     _smartSeriesCache = null;
+    _nowPlayingCache = null;
+    _upcomingCache = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cached_movie_recommendations');
     await prefs.remove('cached_series_recommendations');
@@ -361,5 +366,38 @@ class MovieService {
         .collection('dismissed_recommendations').doc(movieId.toString())
         .set({'timestamp': FieldValue.serverTimestamp()});
     await clearCache();
+  }
+
+  // --- THEATRE DATA ---
+  Future<List<MovieModel>> getNowPlayingMovies({bool forceRefresh = false}) async {
+    if (_nowPlayingCache != null && !forceRefresh) return _nowPlayingCache!;
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/movie/now_playing?api_key=$_apiKey&region=IN&language=en-US'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body)['results'] ?? [];
+        _nowPlayingCache = results.map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': 'movie'})).toList();
+        return _nowPlayingCache!;
+      }
+    } catch (e) {
+      debugPrint("Error in getNowPlayingMovies: $e");
+    }
+    return [];
+  }
+
+  Future<List<MovieModel>> getUpcomingMovies({bool forceRefresh = false}) async {
+    if (_upcomingCache != null && !forceRefresh) return _upcomingCache!;
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/movie/upcoming?api_key=$_apiKey&region=IN&language=en-US'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body)['results'] ?? [];
+        _upcomingCache = results.map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': 'movie'})).toList();
+        return _upcomingCache!;
+      }
+    } catch (e) {
+      debugPrint("Error in getUpcomingMovies: $e");
+    }
+    return [];
   }
 }

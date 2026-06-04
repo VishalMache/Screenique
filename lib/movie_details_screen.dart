@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/movie_model.dart';
 import '../../services/movie_service.dart';
 import '../../services/watchlist_service.dart';
@@ -26,11 +27,13 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   bool _isWatched = false;
   bool _isInWatchlist = false; 
   bool _isLoading = true;
+  bool _isInTheatres = false;
 
   @override
   void initState() {
     super.initState();
     _movie = widget.movie;
+    _isInTheatres = MovieService.nowPlayingIds.contains(_movie.id);
     _loadAllData();
   }
 
@@ -460,14 +463,76 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                       _buildCastSection(accentColor),
                       const SizedBox(height: 40),
                       _buildActionButtons(accentColor),
-                      const SizedBox(height: 80),
+                      SizedBox(height: _isInTheatres ? 160 : 80),
                     ],
                   ),
                 ),
               ),
             ],
           ),
+          if (_isInTheatres)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBookingBar(),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBookingBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF111111),
+        border: Border(top: BorderSide(color: Color(0xFFD32F2F), width: 3)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("NOW PLAYING", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, letterSpacing: 3, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildBookingButton(
+                  title: "BOOKMYSHOW",
+                  url: 'https://in.bookmyshow.com/search?q=${Uri.encodeComponent(_movie.title)}',
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildBookingButton(
+                  title: "DISTRICT",
+                  url: 'https://district.in/search?q=${Uri.encodeComponent(_movie.title)}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingButton({required String title, required String url}) {
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD32F2F),
+          border: Border.all(color: const Color(0xFFF4F4EC), width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.confirmation_num, color: Color(0xFFF4F4EC), size: 16),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, fontFamily: 'Impact')),
+          ],
+        ),
       ),
     );
   }

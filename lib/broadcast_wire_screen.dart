@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'models/movie_model.dart';
 import 'services/watchlist_service.dart';
 import 'services/movie_service.dart';
@@ -913,6 +914,17 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 );
               }
 
+              // ── News broadcast card ──
+              if (type == 'news_broadcast') {
+                return _buildNewsFeedCard(
+                  context: context,
+                  data: data,
+                  docId: docId,
+                  isOwner: isOwner,
+                  currentUserId: currentUserId,
+                );
+              }
+
               // ── Standard movie/song broadcast card ──
               final movie = MovieModel.fromJson(data);
               final Color rankColor = ArchiveRank.getColor(movie.senderRankCount ?? 0);
@@ -1193,7 +1205,6 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         },
       ),
       
-      // Floating Action Button to Broadcast
       floatingActionButton: FloatingActionButton(
         onPressed: _showBroadcastCreationSheet,
         backgroundColor: const Color(0xFFD32F2F),
@@ -1203,6 +1214,310 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           side: const BorderSide(color: Color(0xFF111111), width: 2),
         ),
         child: const Icon(Icons.podcasts_rounded, color: Color(0xFFF4F4EC)),
+      ),
+    );
+  }
+
+  Widget _buildNewsFeedCard({
+    required BuildContext context,
+    required Map<String, dynamic> data,
+    required String docId,
+    required bool isOwner,
+    required String? currentUserId,
+  }) {
+    final String headline = data['title'] ?? 'Unknown News';
+    final String sourceName = data['sourceName'] ?? 'News';
+    final String articleUrl = data['articleUrl'] ?? '';
+    final String posterPath = data['posterPath'] ?? '';
+    final String reason = data['reason'] ?? 'No reason provided.';
+    final String senderName = data['senderName'] ?? 'Anonymous';
+    final int senderRankCount = data['senderRankCount'] ?? 0;
+    
+    final Color rankColor = ArchiveRank.getColor(senderRankCount);
+    final String rankName = ArchiveRank.getTitle(senderRankCount);
+    final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+    final String timeAgo = _formatTimeAgo(timestamp);
+
+    final List<dynamic> likes = data['likes'] ?? [];
+    final bool isLiked = currentUserId != null && likes.contains(currentUserId);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: rankColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    senderName.isNotEmpty ? senderName[0].toUpperCase() : "A",
+                    style: const TextStyle(
+                      color: Color(0xFFF4F4EC),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'Impact',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          senderName.toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF111111),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'Impact',
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "• $timeAgo",
+                          style: const TextStyle(
+                            color: Color(0xFF888882),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.verified_user_rounded, color: rankColor, size: 10),
+                        const SizedBox(width: 4),
+                        Text(
+                          rankName.toUpperCase(),
+                          style: TextStyle(
+                            color: rankColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Reason Box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEBEBE4),
+              border: Border.all(color: const Color(0xFF111111), width: 1.5),
+              boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(2, 2))],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.format_quote_rounded, color: Color(0xFFD32F2F), size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      "TRANSMISSION LOG",
+                      style: const TextStyle(
+                        color: Color(0xFFD32F2F),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  reason,
+                  style: const TextStyle(
+                    color: Color(0xFF111111),
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Interactive Entity Card
+          GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse(articleUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+              }
+            },
+            child: Container(
+              height: 110,
+              decoration: BoxDecoration(
+                color: const Color(0xFF111111),
+                border: Border.all(color: const Color(0xFF111111), width: 2),
+                boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
+              ),
+              child: Row(
+                children: [
+                  // Poster / Entity Image
+                  Container(
+                    width: 75,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF222222),
+                      border: const Border(right: BorderSide(color: Color(0xFFF4F4EC), width: 1)),
+                    ),
+                    child: posterPath.isNotEmpty
+                        ? Image.network(
+                            posterPath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.newspaper, color: Color(0xFFF4F4EC))),
+                          )
+                        : const Center(child: Icon(Icons.newspaper, color: Color(0xFFF4F4EC))),
+                  ),
+                  
+                  // Details
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            color: const Color(0xFFD32F2F),
+                            child: const Text(
+                              "NEWS",
+                              style: TextStyle(
+                                color: Color(0xFFF4F4EC),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            headline.toUpperCase(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFF4F4EC),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'Impact',
+                              letterSpacing: 0.5,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            sourceName.toUpperCase(),
+                            style: const TextStyle(
+                              color: Color(0xFF888882),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Action Bar (Like / Delete / Report)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Like Button
+              GestureDetector(
+                onTap: () async {
+                  if (currentUserId == null) return;
+                  HapticFeedback.selectionClick();
+                  await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isLiked ? const Color(0xFFFFEBEE) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isLiked ? const Color(0xFFD32F2F) : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        likes.length.toString(),
+                        style: TextStyle(
+                          color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Delete / Report
+              isOwner
+                  ? IconButton(
+                      onPressed: () => _confirmBroadcastDeletion(docId),
+                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
+                      splashRadius: 20,
+                    )
+                  : IconButton(
+                      onPressed: () => _showReportDialog(docId),
+                      icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
+                      splashRadius: 20,
+                    ),
+            ],
+          ),
+          
+          // Divider
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Divider(color: Color(0xFFE0E0DB), thickness: 1.5),
+          ),
+        ],
       ),
     );
   }

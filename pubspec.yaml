@@ -38,6 +38,9 @@ dependencies:
   pdf: ^3.10.8
   anthropic_sdk_dart: ^4.0.0
   flutter_dotenv: ^6.0.1
+  xml: ^6.6.1
+  url_launcher: ^6.3.2
+  html: ^0.15.6
 
 dev_dependencies:
   flutter_test:

@@ -19,8 +19,10 @@ import '../features/movie_lists/watched_tab.dart';
 import '../features/experiences/add_experience_screen.dart';
 import '../features/experiences/experiences_tab.dart';
 import '../features/world_cinema/world_cinema_screen.dart';
+import 'features/news/the_news_screen.dart';
 import 'widgets/recommendation_carousel.dart';
 import 'widgets/series_recommendation_carousel.dart';
+import 'widgets/theatre_carousel.dart';
 import 'widgets/dialogue_hero_widget.dart';
 import '../data/dialogues_data.dart';
 import '../profile_screen.dart';
@@ -58,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   // Quick Add Context to separate FAB flows
   String? _quickAddContext; 
+  String? _experiencePromptTitle;
 
   @override
   void initState() {
@@ -136,6 +139,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _lastRefreshTime = DateFormat('hh:mm a').format(DateTime.now());
         if ((_smartMovieData?['movies'] as List).isEmpty && (_smartSeriesData?['movies'] as List).isEmpty) _showReloadPrompt = true;
       });
+
+      // Check for Theatre Experience Prompt
+      final prefs = await SharedPreferences.getInstance();
+      final lastTappedTitle = prefs.getString('theatre_last_tapped_title');
+      final lastTappedDateStr = prefs.getString('theatre_last_tapped_date');
+      final dismissedDateStr = prefs.getString('theatre_prompt_dismissed_date');
+
+      if (lastTappedTitle != null && lastTappedDateStr != null) {
+        final lastTappedDate = DateTime.parse(lastTappedDateStr);
+        final diff = DateTime.now().difference(lastTappedDate);
+        
+        // Between 12 and 48 hours ago
+        if (diff.inHours >= 12 && diff.inHours <= 48) {
+          bool shouldShow = true;
+          if (dismissedDateStr != null) {
+            final dismissedDate = DateTime.parse(dismissedDateStr);
+            if (dismissedDate.isAfter(lastTappedDate)) {
+              shouldShow = false;
+            }
+          }
+          if (shouldShow && mounted) {
+            setState(() {
+              _experiencePromptTitle = lastTappedTitle;
+            });
+          }
+        }
+      }
     } catch (e) {
       if (mounted) setState(() {_isLoading = false; _showReloadPrompt = true;});
     }
@@ -565,7 +595,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             // 2. QUICK ACCESS
             _buildQuickAccess(),
             const SizedBox(height: 12),
-            // 3. RECOMMENDATION HUB
+            // 2.5 EXPERIENCE PROMPT
+            if (_experiencePromptTitle != null) ...[
+              _buildExperiencePrompt(),
+              const SizedBox(height: 12),
+            ],
+            // 3. NOW PLAYING
+            const TheatreCarousel(),
+            const SizedBox(height: 24),
+            // 4. RECOMMENDATION HUB
             _buildHubHeader("RECOMMENDATION HUB"),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 800),
@@ -586,9 +624,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ? const CarouselPlaceholder(key: ValueKey('series_ph'), title: "SERIES FOR YOU", isSeries: true)
                 : SeriesRecommendationCarousel(key: const ValueKey('series_smart'), data: _smartSeriesData),
             ),
-            const SizedBox(height: 30),
-            // 7. EDITOR'S PICK
-            _buildEditorsPickBanner(),
           ],
         ),
       ),
@@ -619,6 +654,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
 
   Widget _buildReloadTooltip() => TweenAnimationBuilder<double>(tween: Tween(begin: 0.0, end: 1.0), duration: const Duration(milliseconds: 500), curve: Curves.elasticOut, builder: (context, value, child) => Transform.scale(scale: value, alignment: Alignment.topRight, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: _retryCount > 0 ? Colors.blueGrey.withOpacity(0.9) : const Color(0xFFD32F2F), borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10)]), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(_retryCount > 0 ? Icons.sync : Icons.bolt, color: Colors.white, size: 14), const SizedBox(width: 6), Text(_retryCount > 0 ? "AUTO-SYNCING..." : "TAP TO SYNC", style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))]))));
+
+  Widget _buildExperiencePrompt() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF111111),
+        border: Border(left: BorderSide(color: Color(0xFFD32F2F), width: 4)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const AddExperienceScreen()));
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "🎬 DID YOU CATCH ${_experiencePromptTitle?.toUpperCase()}?",
+                        style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "LOG YOUR CINEMA EXPERIENCE →",
+                        style: TextStyle(color: Color(0xFFD32F2F), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Color(0xFFF4F4EC), size: 16),
+                  onPressed: () async {
+                    setState(() => _experiencePromptTitle = null);
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('theatre_prompt_dismissed_date', DateTime.now().toIso8601String());
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildQuickAccess() {
     return Padding(
@@ -654,6 +738,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   icon: Icons.camera_roll_outlined,
                   isRed: false,
                   onTap: () => _showCollectionOverlay(const WatchedTab(), "WATCHED MOVIES"),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildCollectionCard(
+                  title: "THE NEWS",
+                  subtitle: "LIVE TRANSMISSIONS",
+                  icon: Icons.newspaper_rounded,
+                  isRed: false,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TheNewsScreen())),
                 ),
               ),
             ],
@@ -784,106 +882,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       }, leading: ClipRRect(borderRadius: BorderRadius.circular(2), child: Image.network(movie.posterPath, width: 50, height: 75, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111), width: 50, child: Icon(movie.isPerson ? Icons.person : Icons.movie, color: const Color(0xFFF4F4EC))))), title: Text(displayName.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), subtitle: Text(movie.isPerson ? "ARCHIVAL PERSON" : (movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate), style: const TextStyle(color: Color(0xFF454545), fontSize: 10, fontWeight: FontWeight.bold)), trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF111111), size: 14)));
     });
-  }
-
-  Widget _buildEditorsPickBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        border: Border.all(color: const Color(0xFF111111), width: 3),
-        boxShadow: const [BoxShadow(color: Color(0xFFD32F2F), offset: Offset(6, 6))], // Red shadow for impact
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top label bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: const Color(0xFFD32F2F),
-            child: const Text(
-              "EDITOR'S ARCHIVAL PICK",
-              style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 4),
-            ),
-          ),
-          // Main content row
-          Row(
-            children: [
-              // Left text section
-              Expanded(
-                flex: 3,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("WRITTEN BY", style: TextStyle(color: Color(0xFFD32F2F), fontSize: 9, letterSpacing: 3, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      const Text(
-                        "QUENTIN\nTARANTINO",
-                        style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 22, fontWeight: FontWeight.w900, height: 0.95, fontFamily: 'Impact', letterSpacing: -0.5),
-                      ),
-                      const SizedBox(height: 12),
-                      Opacity(
-                        opacity: 0.6,
-                        child: Image.network(
-                          "https://upload.wikimedia.org/wikipedia/commons/4/4e/Quentin_Tarantino_Signature.png",
-                          color: const Color(0xFFF4F4EC),
-                          height: 32,
-                          alignment: Alignment.centerLeft,
-                          errorBuilder: (c, e, s) => const Text("___________", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 14)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(height: 1, color: const Color(0xFFF4F4EC).withOpacity(0.3)),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: _manualArchiveRefresh,
-                        child: Row(
-                          children: const [
-                            Icon(Icons.refresh, color: Color(0xFFD32F2F), size: 12),
-                            SizedBox(width: 6),
-                            Text("REFRESH REQUIRED", style: TextStyle(color: Color(0xFFD32F2F), fontSize: 9, letterSpacing: 2, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Right red accent block
-              Container(
-                width: 110,
-                height: 150,
-                color: const Color(0xFFC62828),
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "EDITOR'S\nPICK",
-                      style: TextStyle(color: Color(0xFF111111), fontSize: 22, fontWeight: FontWeight.w900, height: 1.0, fontFamily: 'Impact'),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: const [
-                          Icon(Icons.star, color: Color(0xFF111111), size: 48),
-                          Icon(Icons.star_outline, color: Color(0xFFF4F4EC), size: 32),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
 

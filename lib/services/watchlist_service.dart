@@ -108,6 +108,29 @@ class WatchlistService {
     });
   }
 
+  Future<void> broadcastNews(String headline, String sourceName, String articleUrl, String? imageUrl, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? "Anonymous";
+    final watchedCount = await getWatchedCount();
+
+    await _firestore.collection('community_recs').add({
+      'type': 'news_broadcast',
+      'title': headline,
+      'sourceName': sourceName,
+      'articleUrl': articleUrl,
+      'posterPath': imageUrl ?? '',
+      'senderId': user.uid,
+      'senderName': senderName,
+      'reason': reason,
+      'timestamp': FieldValue.serverTimestamp(),
+      'senderRankCount': watchedCount,
+      'likes': [],
+    });
+  }
+
   Future<bool> toggleBroadcastLike(String docId, String userId, bool isCurrentlyLiked) async {
     final docRef = _firestore.collection('community_recs').doc(docId);
     try {
