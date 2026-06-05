@@ -23,7 +23,7 @@ class NewsService {
     _FeedSource('Bollywood Hungama', 'https://www.bollywoodhungama.com/rss/news.xml', 'INDIAN CINEMA'),
     _FeedSource('News18 Movies', 'https://www.news18.com/rss/movies.xml', 'INDIAN CINEMA'),
     _FeedSource('Crunchyroll News', 'https://cr-news-api-service.prd.crunchyrollsvc.com/v1/en-US/rss', 'ANIME'),
-    _FeedSource('Comic Book Resources', 'https://www.cbr.com/feed/', 'MARVEL'),
+    _FeedSource('Comic Book Resources', 'https://www.cbr.com/category/movies/news-movies/marvel-movies/feed/', 'MARVEL'),
   ];
 
   static const String _cacheKey = 'news_cache_items_v5';
@@ -136,12 +136,7 @@ class NewsService {
           final id = link.hashCode.toString();
 
           if (title.isNotEmpty && link.isNotEmpty) {
-            if (source.region == 'MARVEL') {
-              final text = (title + description).toLowerCase();
-              if (!text.contains('marvel') && !text.contains('mcu') && !text.contains('avengers') && !text.contains('x-men') && !text.contains('spider-man') && !text.contains('deadpool')) {
-                continue;
-              }
-            }
+            // We now rely on the category feed itself for Marvel, no strict keyword filtering needed.
 
             feedItems.add(NewsItem(
               id: id,

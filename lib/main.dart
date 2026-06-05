@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 
 // Services & Screens
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'home_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 
@@ -16,6 +17,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService().init();
   runApp(const ScreeniqueApp());
 }
 
@@ -52,11 +54,9 @@ class ScreeniqueApp extends StatelessWidget {
           ),
         ),
       ),
-      // The FilmBurn and FilmGrain wrap the entry point so the aesthetic is global
-      home: FilmBurnOverlay(
-        child: const FilmGrainOverlay(
-          child: AuthWrapper(), // App starts directly with the auth gate check
-        ),
+      // The FilmBurn wraps the entry point so the aesthetic is global
+      home: const FilmBurnOverlay(
+        child: AuthWrapper(), // App starts directly with the auth gate check
       ),
     );
   }
@@ -157,73 +157,4 @@ class BurnPainter extends CustomPainter {
   @override
   bool shouldRepaint(BurnPainter old) => true;
 }
-
-// --- FILM GRAIN & SCRATCHES OVERLAY ---
-class FilmGrainOverlay extends StatefulWidget {
-  final Widget child;
-  const FilmGrainOverlay({super.key, required this.child});
-
-  @override
-  State<FilmGrainOverlay> createState() => _FilmGrainOverlayState();
-}
-
-class _FilmGrainOverlayState extends State<FilmGrainOverlay> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late final AssetImage _grainImageProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _grainImageProvider = const AssetImage('assets/stardust.png');
-    _controller = AnimationController(duration: const Duration(milliseconds: 150), vsync: this)..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        RepaintBoundary(child: widget.child),
-        IgnorePointer(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Stack(
-                children: [
-                  // Occasional vertical film scratches (darker for light theme)
-                  if (Random().nextDouble() > 0.94)
-                    Positioned(
-                      left: Random().nextDouble() * MediaQuery.of(context).size.width,
-                      top: 0, bottom: 0,
-                      child: Container(width: 1.2, color: Colors.black.withOpacity(0.06)),
-                    ),
-                  // Constant film grain texture
-                  Opacity(
-                    opacity: 0.12, // slightly higher opacity for light theme
-                    child: Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: _grainImageProvider,
-                          repeat: ImageRepeat.repeat,
-                          alignment: Alignment(
-                            Random().nextDouble() * 2 - 1, 
-                            Random().nextDouble() * 2 - 1
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
+

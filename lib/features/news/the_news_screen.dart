@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -123,7 +123,7 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "${item.sourceName.toUpperCase()} · ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
+                              "${item.sourceName.toUpperCase()} Â· ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
                               style: TextStyle(color: const Color(0xFFF4F4EC).withOpacity(0.5), fontSize: 8, letterSpacing: 1),
                             ),
                             const SizedBox(height: 4),
@@ -175,7 +175,7 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
                       await _watchlistService.broadcastNews(item.title, item.sourceName, item.articleUrl, item.imageUrl, reason);
                       if (mounted) Navigator.pop(context);
                       HapticFeedback.heavyImpact();
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NEWS TRANSMITTED! 📡"), backgroundColor: Color(0xFF111111)));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NEWS TRANSMITTED! ðŸ“¡"), backgroundColor: Color(0xFF111111)));
                     } catch (_) {
                       setSheetState(() => isBroadcasting = false);
                     }
@@ -485,13 +485,15 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
   }
 
   Widget _buildSkeletonCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      height: 140,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEBEBE4),
-        border: Border.all(color: const Color(0xFF111111), width: 2),
-        boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
+    return _ShimmerBox(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        height: 140,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEBEBE4),
+          border: Border.all(color: const Color(0xFF111111), width: 2),
+          boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(3, 3))],
+        ),
       ),
     );
   }
@@ -539,7 +541,7 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "${item.sourceName.toUpperCase()} · ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
+                          "${item.sourceName.toUpperCase()} Â· ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
                           style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1),
                         ),
                         const SizedBox(height: 6),
@@ -612,7 +614,7 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${item.sourceName.toUpperCase()} · ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
+                    "${item.sourceName.toUpperCase()} Â· ${_formatTimeAgo(item.publishedAt).toUpperCase()}",
                     style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                   const SizedBox(height: 8),
@@ -719,6 +721,47 @@ class _TheNewsScreenState extends State<TheNewsScreen> {
       child: const Center(
         child: Icon(Icons.newspaper, color: Color(0xFFF4F4EC), size: 32),
       ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  final Widget child;
+  const _ShimmerBox({required this.child});
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Opacity(
+          opacity: 0.4 + (_controller.value * 0.6),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'public_profile_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +10,9 @@ import 'models/movie_model.dart';
 import 'services/watchlist_service.dart';
 import 'services/movie_service.dart';
 import 'movie_details_screen.dart';
+import 'user_search_screen.dart';
+import 'post_likes_screen.dart';
+import 'comments_bottom_sheet.dart';
 
 class BroadcastWireScreen extends StatefulWidget {
   const BroadcastWireScreen({super.key});
@@ -20,6 +26,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
   final MovieService _movieService = MovieService();
   final TextEditingController _broadcastSearchController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
+  final Map<String, Timer> _viewTimers = {};
   
   List<MovieModel> _searchResults = [];
   bool _isSearching = false;
@@ -28,9 +35,32 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
 
   @override
   void dispose() {
+    for (var timer in _viewTimers.values) {
+      timer.cancel();
+    }
     _broadcastSearchController.dispose();
     _reasonController.dispose();
     super.dispose();
+  }
+
+  Widget _buildVisibilityWrapper(String docId, Widget child) {
+    return VisibilityDetector(
+      key: Key('broadcast_$docId'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.5) {
+          if (!_viewTimers.containsKey(docId)) {
+            _viewTimers[docId] = Timer(const Duration(milliseconds: 1500), () {
+              _watchlistService.incrementView(docId);
+              _viewTimers.remove(docId);
+            });
+          }
+        } else {
+          _viewTimers[docId]?.cancel();
+          _viewTimers.remove(docId);
+        }
+      },
+      child: child,
+    );
   }
 
   String _formatTimeAgo(Timestamp? timestamp) {
@@ -548,6 +578,197 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
     );
   }
 
+  void _showAnalyticsBottomSheet(int viewCount, int likeCount, Timestamp? timestamp, List<dynamic> likedBy) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final timeString = timestamp != null 
+          ? "${timestamp.toDate().year}-${timestamp.toDate().month.toString().padLeft(2, '0')}-${timestamp.toDate().day.toString().padLeft(2, '0')} ${timestamp.toDate().hour.toString().padLeft(2, '0')}:${timestamp.toDate().minute.toString().padLeft(2, '0')}"
+          : "Unknown";
+          
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF4F4EC),
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+            border: Border(top: BorderSide(color: Color(0xFF111111), width: 2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "POST METRICS",
+                style: TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 2),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF454545), size: 24),
+                      const SizedBox(width: 12),
+                      const Text("Total Views", style: TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Text(viewCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.pop(context); // close bottom sheet
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => PostLikesScreen(likedByUids: likedBy)));
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.favorite_rounded, color: Color(0xFFD32F2F), size: 24),
+                        const SizedBox(width: 12),
+                        const Text("Total Likes", style: TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(likeCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF454545), size: 14),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFF111111), thickness: 2),
+              const SizedBox(height: 16),
+              Text("Posted: $timeString", style: const TextStyle(color: Color(0xFF454545), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPostFooter(String docId, bool isOwner, Timestamp? timestamp, Map<String, dynamic> docData, String? currentUserId) {
+    final List likedBy = docData['likedBy'] ?? docData['likes'] ?? [];
+    final int likeCount = docData['likeCount'] ?? likedBy.length;
+    final bool isLiked = currentUserId != null && likedBy.contains(currentUserId);
+    final int viewCount = docData['viewCount'] ?? 0;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            if (isOwner)
+              GestureDetector(
+                onTap: () => _showAnalyticsBottomSheet(viewCount, likeCount, timestamp, likedBy),
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF454545), size: 18),
+                      const SizedBox(width: 4),
+                      Text(viewCount.toString(), style: const TextStyle(color: Color(0xFF454545), fontSize: 13, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.favorite_rounded, color: Color(0xFFD32F2F), size: 18),
+                      const SizedBox(width: 4),
+                      Text(likeCount.toString(), style: const TextStyle(color: Color(0xFF454545), fontSize: 13, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () async {
+                  if (currentUserId != null) {
+                    HapticFeedback.lightImpact();
+                    await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
+                  }
+                },
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        likeCount.toString(),
+                        style: TextStyle(
+                          color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SizedBox(width: 16),
+            
+            // Comments Icon
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (currentUserId == null) return;
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => CommentsBottomSheet(
+                    postId: docId,
+                    postAuthorId: docData['senderId'] ?? '',
+                    currentUserId: currentUserId,
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.mode_comment_outlined, color: Color(0xFF454545), size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      (docData['commentCount'] ?? 0).toString(),
+                      style: const TextStyle(color: Color(0xFF454545), fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        isOwner
+            ? IconButton(
+                onPressed: () => _confirmBroadcastDeletion(docId),
+                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
+                splashRadius: 20,
+              )
+            : IconButton(
+                onPressed: () => _showReportDialog(docId),
+                icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
+                splashRadius: 20,
+              ),
+      ],
+    );
+  }
+
   Widget _buildPlaylistFeedCard({
     required BuildContext context,
     required Map<String, dynamic> data,
@@ -572,16 +793,23 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Author Header ──
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: rankColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                ),
+          GestureDetector(
+            onTap: () {
+              final sid = data['senderId'];
+              if (sid != null && sid.toString().isNotEmpty) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfileScreen(uid: sid)));
+              }
+            },
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: rankColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                  ),
                 child: Center(
                   child: Text(
                     senderName.isNotEmpty ? senderName[0].toUpperCase() : 'A',
@@ -625,6 +853,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 child: const Text('📋 PLAYLIST', style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1)),
               ),
             ],
+          ),
           ),
           const SizedBox(height: 12),
 
@@ -715,62 +944,8 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           const SizedBox(height: 12),
 
           // ── Action Bar ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Likes
-              StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('community_recs').doc(docId).snapshots(),
-                builder: (context, snap) {
-                  if (!snap.hasData) return const SizedBox(height: 30, width: 60);
-                  final docData = snap.data!.data() as Map<String, dynamic>?;
-                  final List likes = docData?['likes'] ?? [];
-                  final bool isLiked = likes.contains(currentUserId);
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () async {
-                      HapticFeedback.lightImpact();
-                      await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
-                    },
-                    child: Container(
-                      color: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            likes.length.toString(),
-                            style: TextStyle(
-                              color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // Delete / Report
-              isOwner
-                  ? IconButton(
-                      onPressed: () => _confirmBroadcastDeletion(docId),
-                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
-                      splashRadius: 20,
-                    )
-                  : IconButton(
-                      onPressed: () => _showReportDialog(docId),
-                      icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
-                      splashRadius: 20,
-                    ),
-            ],
-          ),
+          // ── Action Bar ──
+          _buildPostFooter(docId, isOwner, timestamp, data, currentUserId),
 
           const Padding(
             padding: EdgeInsets.only(top: 12),
@@ -851,6 +1026,15 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           ],
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded, color: Color(0xFF111111), size: 24),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const UserSearchScreen()));
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
@@ -903,9 +1087,11 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
               final String docId = doc.id;
               final String type = data['type'] ?? 'movie';
 
+              Widget cardChild;
+
               // ── Playlist broadcast card ──
               if (type == 'playlist') {
-                return _buildPlaylistFeedCard(
+                cardChild = _buildPlaylistFeedCard(
                   context: context,
                   data: data,
                   docId: docId,
@@ -915,8 +1101,8 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
               }
 
               // ── News broadcast card ──
-              if (type == 'news_broadcast') {
-                return _buildNewsFeedCard(
+              else if (type == 'news_broadcast') {
+                cardChild = _buildNewsFeedCard(
                   context: context,
                   data: data,
                   docId: docId,
@@ -926,31 +1112,39 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
               }
 
               // ── Standard movie/song broadcast card ──
-              final movie = MovieModel.fromJson(data);
-              final Color rankColor = ArchiveRank.getColor(movie.senderRankCount ?? 0);
-              final String rankName = ArchiveRank.getTitle(movie.senderRankCount ?? 0);
-              final String reason = movie.broadcastReason ?? 'No reason provided.';
+              else {
+                final movie = MovieModel.fromJson(data);
+                final Color rankColor = ArchiveRank.getColor(movie.senderRankCount ?? 0);
+                final String rankName = ArchiveRank.getTitle(movie.senderRankCount ?? 0);
+                final String reason = movie.broadcastReason ?? 'No reason provided.';
 
-              final Timestamp? timestamp = data['timestamp'] as Timestamp?;
-              final String timeAgo = _formatTimeAgo(timestamp);
+                final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+                final String timeAgo = _formatTimeAgo(timestamp);
 
-              return Container(
+                cardChild = Container(
                 margin: const EdgeInsets.only(bottom: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header: Avatar, Name, Rank, Time
-                    Row(
-                      children: [
-                        // Avatar Initial
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: rankColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                          ),
+                    GestureDetector(
+                      onTap: () {
+                        final sid = movie.senderId;
+                        if (sid != null && sid.isNotEmpty) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfileScreen(uid: sid)));
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          // Avatar Initial
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: rankColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                            ),
                           child: Center(
                             child: Text(
                               (movie.broadcastSender != null && movie.broadcastSender!.isNotEmpty)
@@ -1015,6 +1209,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                           ),
                         ),
                       ],
+                    ),
                     ),
                     const SizedBox(height: 12),
                     
@@ -1119,78 +1314,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                     const SizedBox(height: 12),
                     
                     // Action Bar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Likes
-                        StreamBuilder<DocumentSnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('community_recs')
-                              .doc(docId)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return const SizedBox(height: 30, width: 60);
-                            }
-                            final docData = snapshot.data!.data() as Map<String, dynamic>?;
-                            final List likes = docData?['likes'] ?? [];
-                            final bool isLiked = likes.contains(currentUserId);
-                            
-                            return GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () async {
-                                HapticFeedback.lightImpact();
-                                final success = await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
-                                if (!success && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Action blocked. Check your Firestore Rules!"),
-                                      backgroundColor: Color(0xFFD32F2F),
-                                      duration: Duration(seconds: 3),
-                                    ),
-                                  );
-                                }
-                              },
-                              child: Container(
-                                color: Colors.transparent,
-                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                      color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF111111),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      likes.length.toString(),
-                                      style: TextStyle(
-                                        color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        
-                        // Delete / Report
-                        isOwner
-                            ? IconButton(
-                                onPressed: () => _confirmBroadcastDeletion(docId),
-                                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
-                                splashRadius: 20,
-                              )
-                            : IconButton(
-                                onPressed: () => _showReportDialog(docId),
-                                icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
-                                splashRadius: 20,
-                              ),
-                      ],
-                    ),
+                    _buildPostFooter(docId, isOwner, timestamp, data, currentUserId),
                     
                     // Divider
                     const Padding(
@@ -1200,6 +1324,9 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                   ],
                 ),
               );
+              } // Close the else block
+
+              return _buildVisibilityWrapper(docId, cardChild);
             },
           );
         },
@@ -1247,16 +1374,23 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: rankColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                ),
+          GestureDetector(
+            onTap: () {
+              final sid = data['senderId'];
+              if (sid != null && sid.toString().isNotEmpty) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfileScreen(uid: sid)));
+              }
+            },
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: rankColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                  ),
                 child: Center(
                   child: Text(
                     senderName.isNotEmpty ? senderName[0].toUpperCase() : "A",
@@ -1317,6 +1451,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 ),
               ),
             ],
+          ),
           ),
           
           const SizedBox(height: 12),
@@ -1455,62 +1590,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           const SizedBox(height: 12),
           
           // Action Bar (Like / Delete / Report)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Like Button
-              GestureDetector(
-                onTap: () async {
-                  if (currentUserId == null) return;
-                  HapticFeedback.selectionClick();
-                  await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isLiked ? const Color(0xFFFFEBEE) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isLiked ? const Color(0xFFD32F2F) : Colors.transparent,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        likes.length.toString(),
-                        style: TextStyle(
-                          color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF454545),
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Delete / Report
-              isOwner
-                  ? IconButton(
-                      onPressed: () => _confirmBroadcastDeletion(docId),
-                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF454545), size: 20),
-                      splashRadius: 20,
-                    )
-                  : IconButton(
-                      onPressed: () => _showReportDialog(docId),
-                      icon: const Icon(Icons.flag_outlined, color: Color(0xFF454545), size: 20),
-                      splashRadius: 20,
-                    ),
-            ],
-          ),
+          _buildPostFooter(docId, isOwner, timestamp, data, currentUserId),
           
           // Divider
           const Padding(

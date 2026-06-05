@@ -28,6 +28,7 @@ import '../data/dialogues_data.dart';
 import '../profile_screen.dart';
 import 'settings_screen.dart';
 import 'widgets/custom_dialogue_forge_sheet.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -647,7 +648,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSolidAppBar() => Positioned(top: 0, left: 0, right: 0, child: AnimatedContainer(duration: const Duration(milliseconds: 300), height: _isSearching ? 120 : 100, padding: const EdgeInsets.only(top: 50, left: 24, right: 16), decoration: const BoxDecoration(color: Color(0xFFF4F4EC), border: Border(bottom: BorderSide(color: Color(0xFF111111), width: 1.5))), child: _isSearching ? _buildSearchField() : _buildLogoHeader()));
 
-  Widget _buildLogoHeader() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Transform.translate(offset: const Offset(-12, 0), child: Image.asset('assets/logo12.png', width: 200, fit: BoxFit.fitWidth)), _buildSquareIcon(Icons.search_rounded, () => setState(() => _isSearching = true))]);
+  Widget _buildLogoHeader() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+    Transform.translate(offset: const Offset(-12, 0), child: Image.asset('assets/logo12.png', width: 200, fit: BoxFit.fitWidth)), 
+    Row(
+      children: [
+        _buildSquareIcon(Icons.notifications_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
+        const SizedBox(width: 8),
+        _buildSquareIcon(Icons.search_rounded, () => setState(() => _isSearching = true))
+      ]
+    )
+  ]);
 
   Widget _buildSquareIcon(IconData icon, VoidCallback onTap) => GestureDetector(onTap: onTap, child: Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFF111111)), child: Icon(icon, color: const Color(0xFFF4F4EC), size: 20)));
 
@@ -905,22 +915,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       clipBehavior: Clip.none,
       children: [
         Container(
-          height: 65,
+          height: 55,
           width: double.infinity,
           decoration: const BoxDecoration(color: Color(0xFFF4F4EC), border: Border(top: BorderSide(color: Color(0xFF111111), width: 1.5))),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavIcon(Icons.bookmark_border_rounded, "WATCHLIST", () => _showCollectionOverlay(const WatchlistTab(), "WATCHLIST")),
               _buildNavIcon(Icons.public_rounded, "EXPLORE", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WorldCinemaScreen()))),
-              const SizedBox(width: 40),
               _buildNavIcon(Icons.sensors_rounded, "CINECAST", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastWireScreen()))),
+              const SizedBox(width: 40),
               _buildNavIcon(Icons.confirmation_num_outlined, "HUB", () => _showCollectionOverlay(const ExperiencesTab(), "BEST EXPERIENCE HUB")),
+              _buildNavIcon(Icons.settings_rounded, "SETTING", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()))),
             ],
           ),
         ),
         Positioned(
-          top: -20,
+          top: -10,
           left: MediaQuery.of(context).size.width / 2 - 28,
           child: GestureDetector(
             onTap: _showQuickAddMenu,

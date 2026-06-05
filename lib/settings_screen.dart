@@ -30,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 // Toggles and preferences state
   bool _brutalistDark = false;
   bool _onlyCustomDialogues = false;
+  bool _isPublicProfile = true;
   
   // Dynamic Cache Simulator
   double _cacheSize = 1.48; // in MB
@@ -45,12 +46,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _brutalistDark = prefs.getBool('brutalist_dark') ?? false;
-      _onlyCustomDialogues = prefs.getBool('onlyCustomDialogues') ?? false;
-      // Slightly randomize cache to look dynamic
-      _cacheSize = (1.2 + (Random().nextDouble() * 0.8));
-    });
+    
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _isPublicProfile = doc.data()?['isPublic'] ?? true;
+        });
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _brutalistDark = prefs.getBool('brutalist_dark') ?? false;
+        _onlyCustomDialogues = prefs.getBool('onlyCustomDialogues') ?? false;
+        // Slightly randomize cache to look dynamic
+        _cacheSize = (1.2 + (Random().nextDouble() * 0.8));
+      });
+    }
   }
 
   Future<void> _savePreference(String key, dynamic value) async {
@@ -281,6 +295,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _showEditNameDialog(user),
                 ),
                 _buildActionTile(
+                  Icons.description_outlined,
+                  "REVISE DOSSIER BIO",
+                  subtitle: "Edit your public profile bio",
+                  onTap: () => _showEditBioDialog(user),
+                ),
+                _buildActionTile(
                   Icons.vpn_key_outlined,
                   "RESET TRANSMISSION PASSWORD",
                   subtitle: "Change account password",
@@ -306,7 +326,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // --- 3. PREFERENCES & VISUALS CLUSTER ---
               _buildSectionHeader("DISPLAY & PREFERENCES"),
               _buildSettingCard([
-
+                _buildToggleTile(
+                  Icons.public_rounded,
+                  "PUBLIC DOSSIER",
+                  "Allow others to view your profile and spotlight",
+                  _isPublicProfile,
+                  (val) async {
+                    setState(() => _isPublicProfile = val);
+                    await WatchlistService().toggleProfilePrivacy(val);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(val ? "DOSSIER IS NOW PUBLIC." : "DOSSIER CLASSIFIED (PRIVATE).", style: TextStyle(fontWeight: FontWeight.bold)),
+                          backgroundColor: noirColor,
+                        ),
+                      );
+                    }
+                  },
+                ),
                 _buildToggleTile(
                   Icons.auto_awesome_motion_rounded,
                   "ONLY SHOW MY FORGED DIALOGUES",
@@ -597,6 +634,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await WatchlistService().updateDisplayName(controller.text);
               if (mounted) setState(() {});
               if (context.mounted) Navigator.pop(context);
+            },
+            child: Text("SAVE", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBioDialog(User? user) async {
+    if (user == null) return;
+    
+    // Fetch current bio
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final currentBio = doc.data()?['bio'] ?? '';
+    
+    if (!mounted) return;
+    
+    final controller = TextEditingController(text: currentBio);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: bgColor,
+        shape: RoundedRectangleBorder(side: BorderSide(color: noirColor, width: 2)),
+        title: Text("Revise Bio", style: TextStyle(color: noirColor, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 120,
+          style: TextStyle(color: noirColor),
+          decoration: InputDecoration(
+            hintText: "Enter a brief bio...",
+            hintStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: noirColor, width: 2)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: noirColor, width: 2)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("CANCEL", style: TextStyle(color: noirColor))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: noirColor, foregroundColor: bgColor),
+            onPressed: () async {
+              await WatchlistService().updateBio(controller.text.trim());
+              if (context.mounted) Navigator.pop(context);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("BIO UPDATED.", style: TextStyle(fontWeight: FontWeight.bold)),
+                    backgroundColor: noirColor,
+                  ),
+                );
+              }
             },
             child: Text("SAVE", style: TextStyle(fontWeight: FontWeight.bold)),
           ),

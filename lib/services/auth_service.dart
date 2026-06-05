@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Stream to listen to auth state changes (Used by your AuthWrapper in main.dart)
   Stream<User?> get user => _auth.authStateChanges();
@@ -35,6 +37,11 @@ class AuthService {
 
   // Sign Out
   Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (e) {
+      print("Google SignOut Error: $e");
+    }
     await _auth.signOut();
   }
 // lib/services/auth_service.dart

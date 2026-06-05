@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "209341589284-66ifq1s3od0d215sul6t2m6dlvrst7e1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.screenique",
+            "certificate_hash": "9e7614162eb2b854d1853633551707981bc13597"
+          }
+        },
+        {
           "client_id": "209341589284-8m1qlqr1j5m1pb7bgt05ps3fijnu0l2s.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "209341589284-8m1qlqr1j5m1pb7bgt05ps3fijnu0l2s.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "209341589284-et2al2mi0dv7q2cmm2mt2bejjq1g8iav.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.screenique"
+              }
             }
           ]
         }

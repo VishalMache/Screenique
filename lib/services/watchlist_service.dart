@@ -31,7 +31,36 @@ class WatchlistService {
     final user = _auth.currentUser;
     if (user == null) return;
     await user.updateDisplayName(newName);
+    await _firestore.collection('users').doc(user.uid).update({
+      'name': newName,
+    });
     await user.reload();
+  }
+
+  Future<void> updateBio(String newBio) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).update({
+      'bio': newBio,
+    });
+  }
+
+  Future<void> toggleProfilePrivacy(bool isPublic) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPublic': isPublic,
+    });
+  }
+
+  Future<DocumentSnapshot?> getUserProfile(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      return doc.exists ? doc : null;
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+      return null;
+    }
   }
 
   Future<void> resetCinemaJourney() async {
@@ -82,7 +111,12 @@ class WatchlistService {
       'timestamp': FieldValue.serverTimestamp(),
       'senderRankCount': watchedCount,
       'director': movie.director,
-      'likes': [],
+      'likes': [], // Legacy field
+      'viewCount': 0,
+      'viewedBy': [],
+      'likeCount': 0,
+      'likedBy': [],
+      'commentCount': 0,
     });
   }
 
@@ -104,7 +138,12 @@ class WatchlistService {
       'reason': reason,
       'timestamp': FieldValue.serverTimestamp(),
       'senderRankCount': watchedCount,
-      'likes': [],
+      'likes': [], // Legacy field
+      'viewCount': 0,
+      'viewedBy': [],
+      'likeCount': 0,
+      'likedBy': [],
+      'commentCount': 0,
     });
   }
 
@@ -127,22 +166,73 @@ class WatchlistService {
       'reason': reason,
       'timestamp': FieldValue.serverTimestamp(),
       'senderRankCount': watchedCount,
-      'likes': [],
+      'likes': [], // Legacy field
+      'viewCount': 0,
+      'viewedBy': [],
+      'likeCount': 0,
+      'likedBy': [],
+      'commentCount': 0,
     });
   }
 
   Future<bool> toggleBroadcastLike(String docId, String userId, bool isCurrentlyLiked) async {
     final docRef = _firestore.collection('community_recs').doc(docId);
     try {
-      await docRef.update({
-        'likes': isCurrentlyLiked
-            ? FieldValue.arrayRemove([userId])
-            : FieldValue.arrayUnion([userId]),
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) return;
+        
+        final data = snapshot.data();
+        if (data == null) return;
+        
+        final List likedBy = data['likedBy'] ?? data['likes'] ?? [];
+        final int likeCount = data['likeCount'] ?? likedBy.length;
+        
+        if (isCurrentlyLiked && likedBy.contains(userId)) {
+          transaction.update(docRef, {
+            'likedBy': FieldValue.arrayRemove([userId]),
+            'likeCount': (likeCount - 1) < 0 ? 0 : likeCount - 1,
+            'likes': FieldValue.arrayRemove([userId]), // legacy support
+          });
+        } else if (!isCurrentlyLiked && !likedBy.contains(userId)) {
+          transaction.update(docRef, {
+            'likedBy': FieldValue.arrayUnion([userId]),
+            'likeCount': likeCount + 1,
+            'likes': FieldValue.arrayUnion([userId]), // legacy support
+          });
+        }
       });
       return true;
     } catch (e) {
       debugPrint("Error toggling like: $e");
       return false;
+    }
+  }
+
+  Future<void> incrementView(String docId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    final docRef = _firestore.collection('community_recs').doc(docId);
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) return;
+        
+        final data = snapshot.data();
+        if (data == null) return;
+        
+        final List viewedBy = data['viewedBy'] ?? [];
+        if (!viewedBy.contains(user.uid)) {
+          final int viewCount = data['viewCount'] ?? 0;
+          transaction.update(docRef, {
+            'viewedBy': FieldValue.arrayUnion([user.uid]),
+            'viewCount': viewCount + 1,
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint("Error incrementing view: $e");
     }
   }
 
@@ -378,6 +468,11 @@ class WatchlistService {
       'senderRankCount': watchedCount,
       'timestamp': FieldValue.serverTimestamp(),
       'likes': <String>[],
+      'viewCount': 0,
+      'viewedBy': [],
+      'likeCount': 0,
+      'likedBy': [],
+      'commentCount': 0,
     });
   }
 }

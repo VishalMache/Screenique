@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/watchlist_service.dart';
 import '../../models/movie_model.dart';
+import 'follow_list_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -61,7 +62,16 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 140),
-                _buildProfileHeader(user, totalWatched),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+                  builder: (context, userSnapshot) {
+                    final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                    final username = userData?['username'] ?? '';
+                    final followers = userData?['followersCount'] ?? 0;
+                    final following = userData?['followingCount'] ?? 0;
+                    return _buildProfileHeader(context, uid, user, username, followers, following, totalWatched);
+                  },
+                ),
                 const SizedBox(height: 40),
                 
                 _buildStatSection(movieCount, seriesCount, totalWatched),
@@ -84,7 +94,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(User? user, int watchedCount) {
+  Widget _buildProfileHeader(BuildContext context, String uid, User? user, String username, int followers, int following, int watchedCount) {
     final String photoUrl = user?.photoURL ??
         'https://ui-avatars.com/api/?name=${user?.email ?? "User"}&background=111111&color=f4f4ec';
 
@@ -108,9 +118,52 @@ class ProfileScreen extends StatelessWidget {
           style: const TextStyle(
               color: Color(0xFF111111), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1.0, fontFamily: 'Impact', height: 1.0),
         ),
+        if (username.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            "@$username",
+            style: const TextStyle(
+                color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1),
+          ),
+        ],
         const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildFollowCount("FOLLOWERS", followers, () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'followers')));
+            }),
+            const SizedBox(width: 24),
+            _buildFollowCount("FOLLOWING", following, () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'following')));
+            }),
+          ],
+        ),
+        const SizedBox(height: 16),
         _buildRankBadge(watchedCount),
       ],
+    );
+  }
+
+  Widget _buildFollowCount(String label, int count, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+        Text(
+          count.toString(),
+          style: const TextStyle(
+              color: Color(0xFF111111), fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+              color: Color(0xFF111111), fontSize: 9, letterSpacing: 1, fontWeight: FontWeight.bold),
+        ),
+      ],
+      ),
     );
   }
 
