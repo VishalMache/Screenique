@@ -1,0 +1,60 @@
+Features of Screenique:
+
+1. **Authentication & User Management**
+   - Secure Login and Signup via Firebase Authentication
+   - Google Sign-In integration
+   - Customizable User Profiles (Display Name, Unique Username, Bio, Profile Picture)
+
+2. **Movie & TV Show Discovery**
+   - Powered by TMDB API for extensive, up-to-date movie/series data
+   - Home Screen Recommendation Carousels for trending and curated movies
+   - Theatre Carousel for highlighting new releases
+   - Detailed Movie/Series Information Screens (Posters, Synopsis, Release Date, Cast, Crew, Trailer links)
+   - Upcoming movies and series section
+
+3. **Personal Collections & Tracking**
+   - Watchlist: Save movies and TV shows to watch later
+   - Watched List: Log movies and TV shows you have already seen
+   - Rating System: Rate your watched content out of 5 stars
+   - Profile Statistics: Track your total watched count with a breakdown of movies vs. series
+
+4. **Community & Social Interaction**
+   - User Profiles and Public Profiles: View other people's cinematic journey
+   - Follower/Following System: Follow other cinephiles and build a network
+   - User Search: Find your friends or popular users on the platform
+   - Archive Rank System: Earn unique titles and ranks based on the total number of movies you've watched
+   - Top 5 Spotlight: Pin your top 5 favorite movies to your profile
+
+5. **Cinecast (Broadcast Wire)**
+   - Social Feed: Broadcast thoughts, reviews, and movie recommendations to the community feed
+   - Engagement: Like and comment on other users' broadcasts
+   - Mentions and direct engagement on posts
+
+6. **World Cinema Explorer**
+   - Interactive World Map highlighting cinematic output from different countries
+   - Country Dossier Sheets detailing top movies, trends, and iconic directors from specific regions
+
+7. **Experiences Hub**
+   - "Best Experience Hub": Document and share your most memorable theatrical or viewing experiences
+
+8. **Entertainment News**
+   - Dedicated "The News" tab for live transmissions and the latest entertainment news updates
+
+9. **Director & Cast Profiles**
+   - Explore detailed profiles of film directors and actors
+   - Browse a director's complete filmography
+
+10. **Sharing & Notifications**
+    - Instagram Share Integration: Beautifully format and share your watched movies or recommendations to IG stories
+    - Real-time Notifications: Stay updated on Likes, Follows, Comments, and new Cinecasts
+
+11. **Search & History**
+    - Advanced global search for movies, series, and people
+    - Search History: Keep track of and easily revisit "Recent Investigations"
+    - Quick-Add functionality: Add to Watchlist or Watched list directly from the search results
+
+12. **Settings & Customization**
+    - Account Management: Edit Bio, Display Name, and Profile Privacy settings
+    - Custom Design System: Unique Brutalist-inspired UI mixed with modern aesthetics
+    - Reset Cinema Journey: Option to clear data and start fresh
+    - Secure Logout

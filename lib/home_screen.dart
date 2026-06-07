@@ -649,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildSolidAppBar() => Positioned(top: 0, left: 0, right: 0, child: AnimatedContainer(duration: const Duration(milliseconds: 300), height: _isSearching ? 120 : 100, padding: const EdgeInsets.only(top: 50, left: 24, right: 16), decoration: const BoxDecoration(color: Color(0xFFF4F4EC), border: Border(bottom: BorderSide(color: Color(0xFF111111), width: 1.5))), child: _isSearching ? _buildSearchField() : _buildLogoHeader()));
 
   Widget _buildLogoHeader() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-    Transform.translate(offset: const Offset(-12, 0), child: Image.asset('assets/logo12.png', width: 200, fit: BoxFit.fitWidth)), 
+    Transform.translate(offset: const Offset(-12, -6), child: Image.asset('assets/logo12.png', width: 200, fit: BoxFit.fitWidth)), 
     Row(
       children: [
         _buildSquareIcon(Icons.notifications_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
@@ -756,17 +756,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Expanded(
-                child: _buildCollectionCard(
-                  title: "THE NEWS",
-                  subtitle: "LIVE TRANSMISSIONS",
+                flex: 4,
+                child: _buildSimpleCircularButton(
+                  label: "EXPLORE WORLD CINEMA",
+                  icon: Icons.public_rounded,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WorldCinemaScreen())),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: _buildSimpleCircularButton(
+                  label: "NEWS",
                   icon: Icons.newspaper_rounded,
-                  isRed: false,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TheNewsScreen())),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleCircularButton({required String label, required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F4EC),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: const Color(0xFF111111), width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFF111111), size: 16),
+            const SizedBox(width: 6),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: Color(0xFF111111),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -921,7 +965,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavIcon(Icons.public_rounded, "EXPLORE", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WorldCinemaScreen()))),
+              _buildNavIcon(Icons.home_rounded, "HOME", () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  (route) => false,
+                );
+              }),
               _buildNavIcon(Icons.sensors_rounded, "CINECAST", () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastWireScreen()))),
               const SizedBox(width: 40),
               _buildNavIcon(Icons.confirmation_num_outlined, "HUB", () => _showCollectionOverlay(const ExperiencesTab(), "BEST EXPERIENCE HUB")),
