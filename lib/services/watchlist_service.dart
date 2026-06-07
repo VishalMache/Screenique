@@ -286,6 +286,28 @@ class WatchlistService {
         }
       }
 
+      // NEW: Fix for World Cinema map tracking (fetch originCountry if missing)
+      if (data['originCountry'] == null || data['originCountry'].toString().isEmpty) {
+        try {
+          final details = await MovieService().getMediaDetails(movie.id, isTv: movie.isTvShow);
+          String? fetchedCountry;
+          final List? countries = details['origin_country'] ?? details['production_countries'];
+          if (countries != null && countries.isNotEmpty) {
+            final first = countries.first;
+            if (first is String) {
+              fetchedCountry = first;
+            } else if (first is Map && first['iso_3166_1'] != null) {
+              fetchedCountry = first['iso_3166_1'];
+            }
+          }
+          if (fetchedCountry != null) {
+            data['originCountry'] = fetchedCountry;
+          }
+        } catch (_) {
+          debugPrint("Failed to fetch originCountry for ${movie.title}");
+        }
+      }
+
       data['director'] = director;
       data['watchedAt'] = DateTime.now().toIso8601String();
       data['userRating'] = data['userRating'] ?? 0.0;

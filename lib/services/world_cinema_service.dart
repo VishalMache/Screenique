@@ -120,11 +120,60 @@ class WorldCinemaService {
           .get();
           
       final Set<String> explored = {};
+      List<DocumentSnapshot> docsToBackfill = [];
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        if (data['originCountry'] != null && data['originCountry'].toString().isNotEmpty) {
+        if (data['originCountry'] != null && data['originCountry'].toString().isNotEmpty && data['originCountry'] != 'UNKNOWN') {
           explored.add(data['originCountry'].toString());
+        } else if (data['originCountry'] == null || data['originCountry'].toString().isEmpty) {
+          docsToBackfill.add(doc);
         }
+      }
+
+      // Lazy Background Backfill (Max 5 per load to respect TMDB limits)
+      if (docsToBackfill.isNotEmpty) {
+        Future.microtask(() async {
+          int count = 0;
+          for (var doc in docsToBackfill) {
+            if (count >= 5) break;
+            count++;
+
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              final movieId = int.tryParse(doc.id) ?? data['id'];
+              final isTv = data['isTvShow'] == true;
+
+              if (movieId != null && movieId != 0) {
+                final endpoint = isTv ? 'tv' : 'movie';
+                final response = await http.get(Uri.parse('$_baseUrl/$endpoint/$movieId?api_key=$_apiKey')).timeout(const Duration(seconds: 3));
+                
+                if (response.statusCode == 200) {
+                  final details = json.decode(response.body);
+                  String? fetchedCountry;
+                  final List? countries = details['origin_country'] ?? details['production_countries'];
+                  
+                  if (countries != null && countries.isNotEmpty) {
+                    final first = countries.first;
+                    if (first is String) {
+                      fetchedCountry = first;
+                    } else if (first is Map && first['iso_3166_1'] != null) {
+                      fetchedCountry = first['iso_3166_1'];
+                    }
+                  }
+
+                  if (fetchedCountry != null) {
+                    doc.reference.update({'originCountry': fetchedCountry});
+                  } else {
+                    doc.reference.update({'originCountry': 'UNKNOWN'});
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint("Lazy backfill error: $e");
+            }
+          }
+        });
       }
       return explored;
     } catch (e) {
