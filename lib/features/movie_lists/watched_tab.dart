@@ -136,6 +136,75 @@ class _WatchedTabState extends State<WatchedTab> {
     );
   }
 
+  void _showBroadcastDialog(BuildContext context, MovieModel movie) {
+    final TextEditingController reasonController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFF4F4EC),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(2),
+          side: const BorderSide(color: Color(0xFF111111), width: 2),
+        ),
+        title: const Text("COMMUNITY BROADCAST", 
+          style: TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "EXPLAIN THE CINEMATIC MERIT OF THIS WORK TO THE GLOBAL ARCHIVE.",
+              style: TextStyle(color: Color(0xFF454545), fontSize: 11, letterSpacing: 1),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: reasonController,
+              maxLength: 1200, 
+              maxLines: 5,
+              minLines: 1,
+              autofocus: true,
+              style: const TextStyle(color: Color(0xFF111111), fontSize: 15, height: 1.5),
+              decoration: const InputDecoration(
+                hintText: "WHY SHOULD OTHERS WATCH THIS?",
+                hintStyle: TextStyle(color: Color(0xFF454545), fontSize: 12),
+                counterStyle: TextStyle(color: Color(0xFF454545), fontSize: 11),
+                filled: true,
+                fillColor: Color(0xFFF4F4EC),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF111111), width: 2)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFD32F2F), width: 2)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Color(0xFF111111), fontSize: 13)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF111111)),
+            onPressed: () async {
+              if (reasonController.text.trim().isNotEmpty) {
+                await WatchlistService().broadcastMovie(movie, reasonController.text.trim());
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("TRANSMISSION SUCCESSFUL", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)), 
+                      backgroundColor: Color(0xFF111111),
+                      behavior: SnackBarBehavior.floating
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text("SEND", style: TextStyle(color: Color(0xFFF4F4EC), fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Beautiful rate & review sheet
   void _showRateReviewSheet(MovieModel movie, double currentRating, String? personalNote) {
     final TextEditingController reviewController = TextEditingController(text: personalNote ?? "");
@@ -784,114 +853,23 @@ class _WatchedTabState extends State<WatchedTab> {
                     ),
                   ),
 
-                  // Dedicated Top-Right Action Buttons
+                  // Dedicated Top-Right Rating
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        GestureDetector(
-                          onTap: () => InstagramShareDialog.show(context, movie, currentRating, data['watchedAt']),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF4F4EC),
-                              border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                              boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(1.5, 1.5))],
-                            ),
-                            child: const Icon(Icons.share_outlined, color: Color(0xFF111111), size: 13),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _confirmDeletion(context, movie, service),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF4F4EC),
-                              border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                              boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(1.5, 1.5))],
-                            ),
-                            child: const Icon(Icons.delete_outline_rounded, color: Color(0xFF111111), size: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // main details content
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 10, 64, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title
-                        GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie))),
-                          child: Text(
-                            movie.title.toUpperCase(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF111111),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              fontFamily: 'Impact',
-                              letterSpacing: 0.5,
-                              height: 1.1,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-
-                        // Date Logged
-                        Text(
-                          "LOGGED: ${dateLabel.toUpperCase()}",
-                          style: const TextStyle(color: Color(0xFF888882), fontSize: 8.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Watch type badge
-                        GestureDetector(
-                          onTap: () => _toggleWatchType(movie, watchType),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF111111),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isRewatch ? Icons.autorenew_rounded : Icons.local_offer_outlined,
-                                  size: 7.5,
-                                  color: const Color(0xFFF4F4EC),
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  isRewatch ? "REWATCHED" : "NEW",
-                                  style: const TextStyle(
-                                    color: Color(0xFFF4F4EC),
-                                    fontSize: 7.0,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-
-                        // Rating Stats Section
                         const Text(
                           "YOUR RATING",
                           style: TextStyle(color: Color(0xFF888882), fontSize: 7.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                         ),
                         const SizedBox(height: 1),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               "${currentRating.toStringAsFixed(1)} ",
@@ -909,7 +887,94 @@ class _WatchedTabState extends State<WatchedTab> {
                                 color: Color(0xFF888882),
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
-                                height: 1.8,
+                                height: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // main details content
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 10, 8, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title
+                        Padding(
+                          padding: const EdgeInsets.only(right: 56),
+                          child: GestureDetector(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie))),
+                            child: Text(
+                              movie.title.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF111111),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'Impact',
+                                letterSpacing: 0.5,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+
+                        // Date Logged
+                        Padding(
+                          padding: const EdgeInsets.only(right: 56),
+                          child: Text(
+                            "LOGGED: ${dateLabel.toUpperCase()}",
+                            style: const TextStyle(color: Color(0xFF888882), fontSize: 8.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        const Spacer(),
+                        // Bottom horizontal action buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            GestureDetector(
+                              onTap: () => InstagramShareDialog.show(context, movie, currentRating, data['watchedAt']),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4EC),
+                                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                                  boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(1.5, 1.5))],
+                                ),
+                                child: const Icon(Icons.share_outlined, color: Color(0xFF111111), size: 13),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => _confirmDeletion(context, movie, service),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4EC),
+                                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                                  boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(1.5, 1.5))],
+                                ),
+                                child: const Icon(Icons.delete_outline_rounded, color: Color(0xFF111111), size: 13),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => _showBroadcastDialog(context, movie),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4EC),
+                                  border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                                  boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(1.5, 1.5))],
+                                ),
+                                child: const Icon(Icons.podcasts_rounded, color: Color(0xFF111111), size: 13),
                               ),
                             ),
                           ],
