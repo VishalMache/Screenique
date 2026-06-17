@@ -254,7 +254,17 @@ class _WatchedTabState extends State<WatchedTab> {
                         final isHalf = tempRating >= starValue - 0.5 && tempRating < starValue;
                         return GestureDetector(
                           onTap: () {
-                            setSheetState(() => tempRating = starValue);
+                            setSheetState(() {
+                              final fullValue = index + 1.0;
+                              final halfValue = index + 0.5;
+                              if (tempRating == fullValue) {
+                                tempRating = halfValue;
+                              } else if (tempRating == halfValue) {
+                                tempRating = fullValue;
+                              } else {
+                                tempRating = fullValue;
+                              }
+                            });
                           },
                           child: Padding(
                             padding: const EdgeInsets.only(right: 6),

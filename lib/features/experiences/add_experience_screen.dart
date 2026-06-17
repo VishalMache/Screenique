@@ -96,11 +96,27 @@ class _AddExperienceScreenState extends State<AddExperienceScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(5, (index) => IconButton(
-                        onPressed: () => setState(() => _userRating = index + 1.0),
+                        onPressed: () {
+                          setState(() {
+                            final fullValue = index + 1.0;
+                            final halfValue = index + 0.5;
+                            if (_userRating == fullValue) {
+                              _userRating = halfValue;
+                            } else if (_userRating == halfValue) {
+                              _userRating = fullValue;
+                            } else {
+                              _userRating = fullValue;
+                            }
+                          });
+                        },
                         icon: Icon(
-                          index < _userRating ? Icons.star : Icons.star_border, 
-                          color: index < _userRating ? noirCrimson : const Color(0xFF454545), 
-                          size: 32
+                          index < _userRating.floor()
+                              ? Icons.star
+                              : (index == _userRating.floor() && (_userRating - _userRating.floor()) >= 0.5
+                                  ? Icons.star_half
+                                  : Icons.star_border),
+                          color: index < _userRating ? noirCrimson : const Color(0xFF454545),
+                          size: 32,
                         ),
                       )),
                     ),

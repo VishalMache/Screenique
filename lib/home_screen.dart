@@ -29,6 +29,7 @@ import '../profile_screen.dart';
 import 'settings_screen.dart';
 import 'widgets/custom_dialogue_forge_sheet.dart';
 import 'notifications_screen.dart';
+import 'features/bot/bot_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -140,6 +141,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _lastRefreshTime = DateFormat('hh:mm a').format(DateTime.now());
         if ((_smartMovieData?['movies'] as List).isEmpty && (_smartSeriesData?['movies'] as List).isEmpty) _showReloadPrompt = true;
       });
+
+      // Fetch agent nudge
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final nudge = await AgentService().getNudge(uid);
+          if (nudge != null && mounted) {
+            setState(() => _agentNudge = nudge);
+          }
+        }
+      } catch (_) {}
 
       // Check for Theatre Experience Prompt
       final prefs = await SharedPreferences.getInstance();
@@ -427,12 +439,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) => GestureDetector(
-                  onTap: () => setST(() => rating = i + 1.0),
+                  onTap: () {
+                    setST(() {
+                      final fullValue = i + 1.0;
+                      final halfValue = i + 0.5;
+                      if (rating == fullValue) {
+                        rating = halfValue;
+                      } else if (rating == halfValue) {
+                        rating = fullValue;
+                      } else {
+                        rating = fullValue;
+                      }
+                    });
+                  },
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     child: Icon(
-                      i < rating ? Icons.star : Icons.star_border,
+                      i < rating.floor()
+                          ? Icons.star
+                          : (i == rating.floor() && (rating - rating.floor()) >= 0.5
+                              ? Icons.star_half
+                              : Icons.star_border),
                       color: i < rating ? const Color(0xFF111111) : const Color(0xFF454545),
                       size: 32,
                     ),
@@ -984,6 +1012,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           left: MediaQuery.of(context).size.width / 2 - 28,
           child: GestureDetector(
             onTap: _showQuickAddMenu,
+            onLongPress: () {
+              HapticFeedback.heavyImpact();
+              Navigator.push(context, MaterialPageRoute(
+                builder: (context) => const BotChatScreen(),
+              ));
+            },
             child: Container(
               height: 56,
               width: 56,

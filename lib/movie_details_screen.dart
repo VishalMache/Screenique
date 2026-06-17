@@ -224,12 +224,28 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) => GestureDetector(
-                  onTap: () => setST(() => rating = i + 1.0),
+                  onTap: () {
+                    setST(() {
+                      final fullValue = i + 1.0;
+                      final halfValue = i + 0.5;
+                      if (rating == fullValue) {
+                        rating = halfValue;
+                      } else if (rating == halfValue) {
+                        rating = fullValue;
+                      } else {
+                        rating = fullValue;
+                      }
+                    });
+                  },
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     child: Icon(
-                      i < rating ? Icons.star : Icons.star_border,
+                      i < rating.floor()
+                          ? Icons.star
+                          : (i == rating.floor() && (rating - rating.floor()) >= 0.5
+                              ? Icons.star_half
+                              : Icons.star_border),
                       color: i < rating ? const Color(0xFF111111) : const Color(0xFF454545),
                       size: 32,
                     ),

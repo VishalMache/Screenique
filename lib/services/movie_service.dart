@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie_model.dart';
+import '../core/secrets.dart';
 
 class MovieService {
-  final String _apiKey = '0d938d52f1a549ac4ad887eb076430ab'; 
+  String get _apiKey => AppSecrets.tmdbApiKey;
   final String _baseUrl = 'https://api.tmdb.org/3';
 
   static Map<String, dynamic>? _smartMovieCache;
@@ -399,5 +400,33 @@ class MovieService {
       debugPrint("Error in getUpcomingMovies: $e");
     }
     return [];
+  }
+
+  // --- SCREENU: SEARCH BY TITLE FOR BOT ENRICHMENT ---
+  Future<MovieModel?> searchMovieByTitle(String title, {String? year}) async {
+    try {
+      String url = '$_baseUrl/search/multi?api_key=$_apiKey&query=${Uri.encodeComponent(title)}';
+      if (year != null && year.isNotEmpty) {
+        url += '&year=$year';
+      }
+      final response = await http.get(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body)['results'] ?? [];
+        // Filter to movies and TV shows only, skip people
+        final mediaResults = results.where((r) =>
+            r['media_type'] == 'movie' || r['media_type'] == 'tv' ||
+            r['poster_path'] != null).toList();
+        if (mediaResults.isNotEmpty) {
+          return MovieModel.fromJson({
+            ...mediaResults.first,
+            'isPerson': false,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in searchMovieByTitle: $e");
+    }
+    return null;
   }
 }

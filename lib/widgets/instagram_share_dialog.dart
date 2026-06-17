@@ -1,10 +1,8 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/movie_model.dart';
 
@@ -25,7 +23,7 @@ class InstagramShareDialog extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: "InstagramShareDialog",
-      barrierColor: Colors.black87,
+      barrierColor: const Color(0xFFF4F4EC),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
         return InstagramShareDialog(
@@ -113,7 +111,7 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
     }
   }
 
-  Widget _buildStarRating(double rating, Color color) {
+  Widget _buildStarRating(double rating, Color color, {double size = 14}) {
     List<Widget> stars = [];
     int fullStars = rating.floor();
     bool hasHalf = (rating - fullStars) >= 0.25 && (rating - fullStars) < 0.75;
@@ -122,11 +120,11 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
     }
     for (int i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.add(Icon(Icons.star, color: color, size: 14));
+        stars.add(Icon(Icons.star, color: color, size: size));
       } else if (i == fullStars && hasHalf) {
-        stars.add(Icon(Icons.star_half, color: color, size: 14));
+        stars.add(Icon(Icons.star_half, color: color, size: size));
       } else {
-        stars.add(Icon(Icons.star_border, color: color.withOpacity(0.2), size: 14));
+        stars.add(Icon(Icons.star_border, color: color.withOpacity(0.2), size: size));
       }
     }
     return Row(
@@ -137,15 +135,13 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = widget.watchedAt != null
-        ? DateFormat('MMMM d, yyyy').format(DateTime.parse(widget.watchedAt!))
-        : DateFormat('MMMM d, yyyy').format(DateTime.now());
-
+    final type = widget.movie.isTvShow ? "SERIES" : "MOVIE";
+    final genre = widget.movie.genreNames.split(',').first.trim().toUpperCase();
     final year = widget.movie.releaseDate != 'N/A' && widget.movie.releaseDate.length >= 4
         ? widget.movie.releaseDate.substring(0, 4)
         : 'N/A';
+    final metadata = "$type • $genre • $year";
 
-    // Resolve current user display name
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.displayName ?? (user?.email != null ? user!.email!.split('@')[0] : 'CINEPHILE');
 
@@ -162,317 +158,195 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
               const Text(
                 "STORY CARD PREVIEW",
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: Color(0xFF111111),
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2,
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
+                icon: const Icon(Icons.close_rounded, color: Colors.black54, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
           const SizedBox(height: 10),
 
-          // 9:16 Aspect Ratio Instagram Story Card
           Flexible(
             child: AspectRatio(
               aspectRatio: 9 / 16,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white10, width: 1),
-                  ),
-                  child: Screenshot(
-                    controller: _screenshotController,
-                    child: Stack(
-                      children: [
-                        // Background Cream (Matches app's core UI!)
-                        Container(
-                          color: const Color(0xFFF4F4EC),
-                        ),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF111111).withOpacity(0.12), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF111111).withOpacity(0.08),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14.5),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Screenshot(
+                        controller: _screenshotController,
+                        child: Stack(
+                          children: [
+                            // Background Cream (Matches app's core UI!)
+                            Container(
+                              color: const Color(0xFFF4F4EC),
+                            ),
 
-                        // Left Red Ribbon
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 24,
-                            color: const Color(0xFFD32F2F),
-                          ),
-                        ),
+                            // Film Roll Graphics Background
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: FilmRollPainter(),
+                              ),
+                            ),
 
-                        // Left Red Ribbon Text (Rotated)
-                        Positioned(
-                          left: 2,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: RotatedBox(
-                              quarterTurns: 3, // Rotated vertically upwards
-                              child: const Text(
-                                "SCREENIQUE ARCHIVE  ///  WATCHED ENTRY",
-                                style: TextStyle(
-                                  color: Color(0xFFF4F4EC),
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 4,
-                                  fontFamily: 'Impact',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Viewfinder Camera Corner Brackets (Brutalist Black)
-                        Positioned(
-                          top: 16,
-                          left: 38, // Shifted to make room for red banner
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Color(0xFF111111), width: 1.5),
-                                left: BorderSide(color: Color(0xFF111111), width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Color(0xFF111111), width: 1.5),
-                                right: BorderSide(color: Color(0xFF111111), width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 16,
-                          left: 38, // Shifted
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Color(0xFF111111), width: 1.5),
-                                left: BorderSide(color: Color(0xFF111111), width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 16,
-                          right: 16,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Color(0xFF111111), width: 1.5),
-                                right: BorderSide(color: Color(0xFF111111), width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Main Story Layout Elements
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(48, 32, 24, 32), // Adjusted to avoid overlap with red ribbon
+                            // Main Story Layout Elements
+                            Positioned.fill(
+                              child: Padding(
+                          padding: const EdgeInsets.only(left: 24, right: 24, top: 10, bottom: 16), // Moved logo upside
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Simple, clean SCREENIQUE text branding (top center)
-                              const Center(
-                                child: Text(
-                                  "SCREENIQUE",
-                                  style: TextStyle(
-                                    color: Color(0xFF111111),
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w900,
-                                    fontFamily: 'Impact',
-                                    letterSpacing: 6,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(flex: 2),
-
-                              // Movie Poster (Premium Outline & Glow Shadow)
+                              // Logo asset instead of text branding
                               Center(
-                                child: Container(
-                                  width: 170,
-                                  height: 250,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(0), // Brutalist sharp edges
-                                    border: Border.all(color: const Color(0xFF111111), width: 2.5),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0xFF111111),
-                                        offset: Offset(6, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(0),
-                                    child: Image.network(
-                                      widget.movie.posterPath,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (c, e, s) => Container(
-                                        color: const Color(0xFF111111),
-                                        child: const Icon(Icons.movie_outlined, color: Color(0xFFF4F4EC), size: 40),
-                                      ),
-                                    ),
-                                  ),
+                                child: Image.asset(
+                                  'assets/logo12.png',
+                                  width: 150, // Decreased logo size a bit
+                                  fit: BoxFit.contain,
                                 ),
                               ),
-                              const Spacer(flex: 2),
+                              const SizedBox(height: 4), // Move content below it upside
 
-                              // Solid Cream Brutalist Details Card (Matches app's core UI!)
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F4EC), // App's cream background
-                                  border: Border.all(color: const Color(0xFF111111), width: 2.5),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0xFF111111),
-                                      offset: Offset(5, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Movie Title & Year
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                widget.movie.title.toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Color(0xFF111111),
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 13,
-                                                  fontFamily: 'Impact',
-                                                  letterSpacing: 1,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                "RELEASED: $year  |  ${widget.movie.isTvShow ? "SERIES" : "MOVIE"}",
-                                                style: const TextStyle(
-                                                  color: Color(0xFF454545),
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ],
+                              // Movie Poster (Dynamically scales down for long paragraphs)
+                              Flexible(
+                                flex: 3,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxHeight: 225),
+                                  child: Center(
+                                    child: AspectRatio(
+                                      aspectRatio: 2 / 3,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: const Color(0xFF111111), width: 2),
+                                        ),
+                                        child: Image.network(
+                                          widget.movie.posterPath,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) => Container(
+                                            color: const Color(0xFF111111),
+                                            child: const Icon(Icons.movie_outlined, color: Color(0xFFF4F4EC), size: 40),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
 
-                                        // Brutalist Rating Badge
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFD32F2F),
-                                            border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                                          ),
-                                          child: Text(
-                                            widget.rating.toStringAsFixed(1),
-                                            style: const TextStyle(
-                                              color: Color(0xFFF4F4EC),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w900,
-                                              fontFamily: 'monospace',
+                              // Movie Title (Clean and Simple)
+                              Center(
+                                child: Text(
+                                  widget.movie.title.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Color(0xFF111111),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                    fontFamily: 'Impact',
+                                    letterSpacing: 1.5,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Metadata (Type • Genre • Year) in low opacity
+                              Center(
+                                child: Text(
+                                  metadata,
+                                  style: TextStyle(
+                                    color: const Color(0xFF111111).withOpacity(0.5),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Rating Row (Large size, NO digits, only stars)
+                              Center(
+                                child: _buildStarRating(widget.rating, const Color(0xFF111111), size: 24),
+                              ),
+
+                              // User Review Section (Only visible if not empty)
+                              if (widget.movie.personalNote != null && widget.movie.personalNote!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Flexible(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.topCenter,
+                                            child: SizedBox(
+                                              width: constraints.maxWidth - 48, // Total padding is 24 on each side
+                                              child: Text(
+                                                '"${widget.movie.personalNote}"',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF111111),
+                                                  fontSize: 14.0,
+                                                  fontStyle: FontStyle.italic,
+                                                  height: 1.4,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    const Divider(color: Color(0xFF111111), height: 16, thickness: 1.5),
-
-                                    // Stars (Brutalist Black Stars)
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        _buildStarRating(widget.rating, const Color(0xFF111111)),
-                                        const Text(
-                                          "CINEPHILE RATING",
-                                          style: TextStyle(
-                                            color: Color(0xFFD32F2F),
-                                            fontSize: 7.5,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    // User Review Section (Custom styled, personalized - ALWAYS VISIBLE!)
-                                    const SizedBox(height: 4),
-                                    const Divider(color: Color(0xFF111111), height: 16, thickness: 1.5),
-                                    Row(
-                                      children: [
-                                        Container(width: 3, height: 10, color: const Color(0xFFD32F2F)),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(height: 4),
                                         Text(
-                                          "${userName.toUpperCase()}'S REVIEW",
-                                          style: const TextStyle(
-                                            color: Color(0xFFD32F2F),
-                                            fontSize: 8,
+                                          "— ${userName.toUpperCase()}",
+                                          style: TextStyle(
+                                            color: const Color(0xFF111111).withOpacity(0.6),
+                                            fontSize: 9.5,
                                             fontWeight: FontWeight.w900,
                                             letterSpacing: 1.5,
                                           ),
+                                          textAlign: TextAlign.center,
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      widget.movie.personalNote != null && widget.movie.personalNote!.trim().isNotEmpty
-                                          ? '"${widget.movie.personalNote}"'
-                                          : '"AN ABSOLUTE CINEMATIC MUST-WATCH. A DEFINITIVE RECOMMENDATION FOR THE GLOBAL ARCHIVE."',
-                                      style: const TextStyle(
-                                        color: Color(0xFF111111),
-                                        fontSize: 9.5,
-                                        fontStyle: FontStyle.italic,
-                                        height: 1.4,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      maxLines: 4,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const Spacer(flex: 3),
+                              ],
+                              const Spacer(),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                          ), // Closes Positioned.fill
+                        ],
+                      ),
+                    );
+                },
+              ),
               ),
             ),
+          ),
           ),
           const SizedBox(height: 20),
 
@@ -542,4 +416,51 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
       ),
     );
   }
+}
+
+class FilmRollPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF111111).withOpacity(0.06)
+      ..style = PaintingStyle.fill;
+
+    double holeWidth = 14.0;
+    double holeHeight = 22.0;
+    double spacing = 12.0;
+    double paddingX = 12.0;
+
+    // Draw sprocket holes
+    for (double y = 15; y < size.height; y += holeHeight + spacing) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(paddingX, y, holeWidth, holeHeight),
+          const Radius.circular(4),
+        ),
+        paint,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width - paddingX - holeWidth, y, holeWidth, holeHeight),
+          const Radius.circular(4),
+        ),
+        paint,
+      );
+    }
+    
+    // Draw subtle vertical separator lines
+    final linePaint = Paint()
+      ..color = const Color(0xFF111111).withOpacity(0.04)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+      
+    double leftLineX = paddingX * 2 + holeWidth;
+    double rightLineX = size.width - (paddingX * 2 + holeWidth);
+    
+    canvas.drawLine(Offset(leftLineX, 0), Offset(leftLineX, size.height), linePaint);
+    canvas.drawLine(Offset(rightLineX, 0), Offset(rightLineX, size.height), linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

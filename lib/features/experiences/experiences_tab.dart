@@ -241,9 +241,16 @@ class _FlippableTicketState extends State<FlippableTicket> with SingleTickerProv
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  children: List.generate(5, (i) => Icon(
-                    i < (widget.data['userRating'] ?? 0) ? Icons.star : Icons.star_border, 
-                    color: accent, size: 16)),
+                  children: List.generate(5, (i) {
+                    final double rating = (widget.data['userRating'] ?? 0.0).toDouble();
+                    final isFull = i < rating.floor();
+                    final isHalf = i == rating.floor() && (rating - rating.floor()) >= 0.5;
+                    return Icon(
+                      isFull ? Icons.star : (isHalf ? Icons.star_half : Icons.star_border),
+                      color: accent,
+                      size: 16,
+                    );
+                  }),
                 ),
                 Row(
                   children: [
@@ -298,19 +305,35 @@ class _FlippableTicketState extends State<FlippableTicket> with SingleTickerProv
                   _noirField(note, "WRITE YOUR MEMORY", maxLines: 3),
                   const SizedBox(height: 20),
                   FittedBox(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center, 
-                      children: List.generate(5, (i) => IconButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        constraints: const BoxConstraints(),
-                        onPressed: () => setST(() => rating = i + 1.0), 
-                        icon: Icon(
-                          i < rating ? Icons.star : Icons.star_border, 
-                          color: i < rating ? const Color(0xFF111111) : const Color(0xFF454545),
-                          size: 28,
-                        )
-                      )),
-                    ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center, 
+                        children: List.generate(5, (i) => IconButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            setST(() {
+                              final fullValue = i + 1.0;
+                              final halfValue = i + 0.5;
+                              if (rating == fullValue) {
+                                rating = halfValue;
+                              } else if (rating == halfValue) {
+                                rating = fullValue;
+                              } else {
+                                rating = fullValue;
+                              }
+                            });
+                          }, 
+                          icon: Icon(
+                            i < rating.floor()
+                                ? Icons.star
+                                : (i == rating.floor() && (rating - rating.floor()) >= 0.5
+                                    ? Icons.star_half
+                                    : Icons.star_border),
+                            color: i < rating ? const Color(0xFF111111) : const Color(0xFF454545),
+                            size: 28,
+                          )
+                        )),
+                      ),
                   ),
                 ],
               ),
