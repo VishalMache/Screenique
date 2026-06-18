@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/movie_model.dart';
 import '../../services/movie_service.dart';
 import '../../services/watchlist_service.dart';
+import '../../services/taste_profile_service.dart';
 import '../../movie_details_screen.dart';
 import 'directorprofilescreen.dart';
 import 'dart:math';
@@ -20,17 +21,19 @@ import '../features/experiences/add_experience_screen.dart';
 import '../features/experiences/experiences_tab.dart';
 import '../features/world_cinema/world_cinema_screen.dart';
 import 'features/news/the_news_screen.dart';
+import 'features/bot/bot_chat_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 import 'widgets/recommendation_carousel.dart';
 import 'widgets/series_recommendation_carousel.dart';
 import 'widgets/theatre_carousel.dart';
+import 'widgets/cinebot_suggestion_card.dart';
+import '../../services/bot_service.dart';
 import 'widgets/dialogue_hero_widget.dart';
 import '../data/dialogues_data.dart';
 import '../profile_screen.dart';
 import 'settings_screen.dart';
 import 'widgets/custom_dialogue_forge_sheet.dart';
 import 'notifications_screen.dart';
-import 'features/bot/bot_chat_screen.dart';
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -43,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Map<String, dynamic>? _smartMovieData, _smartSeriesData;
+  MovieModel? _proactivePick;
   late MovieDialogue _currentDialogue;
   List<MovieDialogue> _activeDialogues = [];
   bool _onlyCustomDialogues = false;
@@ -75,6 +79,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _initShakeListener();
     _flareController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
     _flarePulse = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _flareController, curve: Curves.easeInOut));
+    // Check if new user needs onboarding
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkOnboarding());
   }
 
   @override
@@ -110,6 +116,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Navigator.push(context, MaterialPageRoute(builder: (_) => MovieDetailsScreen(movie: movie)));
   }
 
+  /// Check onboarding: show quiz only for new users with 0 watched movies.
+  Future<void> _checkOnboarding() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    try {
+      final profile = await TasteProfileService().getProfile(uid);
+      if (!profile.onboardingComplete && profile.watchedCount == 0) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OnboardingScreen(onComplete: () => Navigator.pop(context)),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
   void _startAutoRetryTimer() {
     _retryTimer?.cancel();
     _retryTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -133,25 +157,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
     try {
       final results = await Future.wait([_movieService.getSmartMovieData(forceRefresh: force), _movieService.getSmartSeriesData(forceRefresh: force)]);
+      
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      MovieModel? pick;
+      if (uid != null) {
+        pick = await BotService().getDailyProactivePick(uid);
+      }
+
       if (!mounted) return;
       setState(() {
         _smartMovieData = results[0];
         _smartSeriesData = results[1];
+        _proactivePick = pick;
         _isLoading = false;
         _lastRefreshTime = DateFormat('hh:mm a').format(DateTime.now());
         if ((_smartMovieData?['movies'] as List).isEmpty && (_smartSeriesData?['movies'] as List).isEmpty) _showReloadPrompt = true;
       });
 
-      // Fetch agent nudge
-      try {
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) {
-          final nudge = await AgentService().getNudge(uid);
-          if (nudge != null && mounted) {
-            setState(() => _agentNudge = nudge);
-          }
-        }
-      } catch (_) {}
+
 
       // Check for Theatre Experience Prompt
       final prefs = await SharedPreferences.getInstance();
@@ -601,7 +624,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(canPop: !_isSearching, onPopInvokedWithResult: (didPop, result) {if (!didPop && _isSearching) _closeSearch();}, child: Scaffold(backgroundColor: const Color(0xFFF4F4EC), extendBody: true, body: Stack(children: [ _isSearching ? _buildSearchLogicUI() : _buildCinematicHome(), _buildSolidAppBar(), if (!_isSearching) _buildBottomNavBar()])));
+    return PopScope(
+      canPop: !_isSearching, 
+      onPopInvokedWithResult: (didPop, result) {if (!didPop && _isSearching) _closeSearch();}, 
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4EC), 
+        extendBody: true, 
+        body: Stack(children: [ 
+          _isSearching ? _buildSearchLogicUI() : _buildCinematicHome(), 
+          _buildSolidAppBar(), 
+          if (!_isSearching) _buildBottomNavBar()
+        ]),
+        floatingActionButton: !_isSearching ? _buildBotFab() : null,
+      )
+    );
+  }
+
+  Widget _buildBotFab() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 60), // Pushes FAB above the custom navbar
+      child: FloatingActionButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BotChatScreen()),
+        ),
+        backgroundColor: const Color(0xFF111111),
+        shape: const CircleBorder(
+          side: BorderSide(color: Color(0xFFD32F2F), width: 1.5),
+        ),
+        elevation: 8,
+        child: ClipOval(
+          child: Image.asset(
+            'assets/bot_logo.png',
+            fit: BoxFit.cover,
+            width: 56,
+            height: 56,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCinematicHome() {
@@ -632,6 +693,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             // 3. NOW PLAYING
             const TheatreCarousel(),
             const SizedBox(height: 24),
+
+            // 3.5. CINEBOT PROACTIVE PICK
+            if (_proactivePick != null) ...[
+              CinebotSuggestionCard(
+                movie: _proactivePick!,
+                onTapChat: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BotChatScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
+
             // 4. RECOMMENDATION HUB
             _buildHubHeader("RECOMMENDATION HUB"),
             AnimatedSwitcher(
@@ -1012,12 +1088,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           left: MediaQuery.of(context).size.width / 2 - 28,
           child: GestureDetector(
             onTap: _showQuickAddMenu,
-            onLongPress: () {
-              HapticFeedback.heavyImpact();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (context) => const BotChatScreen(),
-              ));
-            },
             child: Container(
               height: 56,
               width: 56,

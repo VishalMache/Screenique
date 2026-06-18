@@ -6,6 +6,7 @@ class MovieModel {
   final String overview;
   final String posterPath;
   final double voteAverage;
+  final int voteCount; // NEW: For underrated/mainstream/overrated classification
   final String releaseDate;
   final List<int> genreIds;
   final bool isTvShow;
@@ -47,6 +48,7 @@ class MovieModel {
     required this.overview,
     required this.posterPath,
     required this.voteAverage,
+    this.voteCount = 0,
     required this.releaseDate,
     required this.genreIds,
     this.isTvShow = false,
@@ -129,6 +131,7 @@ class MovieModel {
              : '')
       ),
       voteAverage: (json['vote_average'] ?? json['voteAverage'] ?? 0.0).toDouble(),
+      voteCount: (json['vote_count'] ?? json['voteCount'] ?? 0).toInt(),
       releaseDate: json['release_date'] ?? json['first_air_date'] ?? json['releaseDate'] ?? 'N/A',
       genreIds: List<int>.from(json['genre_ids'] ?? json['genreIds'] ?? []),
       isTvShow: isTv,
@@ -155,6 +158,7 @@ class MovieModel {
       'biography': biography,
       'posterPath': posterPath,
       'voteAverage': voteAverage,
+      'voteCount': voteCount,
       'releaseDate': releaseDate,
       'genreIds': genreIds,
       'isTvShow': isTvShow,

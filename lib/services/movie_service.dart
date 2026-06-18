@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie_model.dart';
+import '../models/taste_profile_model.dart';
 import '../core/secrets.dart';
+import 'taste_profile_service.dart';
 
 class MovieService {
   String get _apiKey => AppSecrets.tmdbApiKey;
@@ -44,145 +47,147 @@ class MovieService {
     return result;
   }
 
-  // --- CORE RECOMMENDATION ENGINE (Balanced Affinity + Match DNA) ---
+  // --- RECOMMENDATION ENGINE V2 (Multi-Signal Taste Profile) ---
   Future<Map<String, dynamic>> _generateSmartData({required bool isTv}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return {'title': 'ARCHIVAL REELS', 'movies': []};
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users').doc(user.uid).collection('movies')
-          .where('status', isEqualTo: 'watched').get();
+      // 1. Load persisted taste profile
+      final profile = await TasteProfileService().getProfile(user.uid);
+      final Set<int> watchedIds = await _getWatchedIds(user.uid);
 
-      List<MovieModel> fallbackList = [];
-      
-      // Pre-fetch a guaranteed fallback list of popular genre/vanguard media to be 100% resilient
-      try {
-        fallbackList = await getMediaByGenre(isTv ? 18 : 28, isTv: isTv);
-      } catch (_) {}
+      // 2. Determine top genre + director for candidate fetching
+      final List<int> topGenres = profile.topGenreIds(n: 3);
+      final List<String> topDirs = profile.topDirectors(n: 2);
+      final bool isColdStart = profile.watchedCount < 3;
 
-      if (snapshot.docs.isEmpty) {
-        final list = await getSimilarMedia(isTv ? 1396 : 27205, isTv: isTv);
-        final finalPool = list.isNotEmpty ? list : fallbackList;
-        return {'title': 'THE VANGUARD', 'movies': finalPool};
+      // Fallback genre if profile empty
+      final int primaryGenreId = topGenres.isNotEmpty
+          ? topGenres.first
+          : (isTv ? 18 : 28);
+
+      // 3. FETCH CANDIDATE POOLS in parallel
+      final futures = <Future<List<MovieModel>>>[
+        getMediaByGenre(primaryGenreId, isTv: isTv),
+        if (topGenres.length > 1) getMediaByGenre(topGenres[1], isTv: isTv),
+        if (topDirs.isNotEmpty && !isTv)
+          getMoviesByDirector(topDirs.first)
+        else
+          Future.value(<MovieModel>[]),
+        _fetchSerendipityPool(profile, isTv: isTv),
+      ];
+
+      final pools = await Future.wait(futures);
+      final List<MovieModel> genrePool1 = pools[0];
+      final List<MovieModel> genrePool2 = pools.length > 1 ? pools[1] : [];
+      final List<MovieModel> directorPool = pools.length > 2 ? pools[2] : [];
+      final List<MovieModel> serendipityPool =
+          pools.length > 3 ? pools[3] : [];
+
+      // 4. SCORE & FILTER candidates
+      final Set<int> avoidGenres = profile.avoidGenres.toSet();
+      final allCandidates = <MovieModel>[
+        ...genrePool1,
+        ...genrePool2,
+        ...directorPool,
+      ];
+
+      // Deduplicate
+      final Map<int, MovieModel> dedupMap = {};
+      for (final m in allCandidates) {
+        if (!dedupMap.containsKey(m.id)) dedupMap[m.id] = m;
       }
 
-      // 1. ANALYZE DNA
-      Map<String, int> directorCounts = {};
-      Map<int, double> weightedGenreCounts = {};
-      final Set<int> watchedIds = snapshot.docs.map((d) => int.tryParse(d.id) ?? 0).toSet();
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final double userRating = (data['userRating'] ?? 3.0).toDouble();
-        final double weightMultiplier = userRating >= 4.0 ? 2.0 : 1.0;
-
-        final List? gIds = data['genre_ids'] ?? data['genreIds'];
-        if (gIds != null) {
-          for (var id in gIds) { 
-            weightedGenreCounts[id] = (weightedGenreCounts[id] ?? 0) + (1.0 * weightMultiplier); 
-          }
+      // Filter watched + avoided genres
+      List<MovieModel> filtered = dedupMap.values.where((m) {
+        if (watchedIds.contains(m.id)) return false;
+        if (avoidGenres.isNotEmpty) {
+          final overlap = m.genreIds
+              .where((g) => avoidGenres.contains(g))
+              .length;
+          // Exclude if >50% of genres are in avoidance list
+          if (m.genreIds.isNotEmpty &&
+              overlap / m.genreIds.length > 0.5) return false;
         }
+        return true;
+      }).toList();
 
-        final String? dir = data['director'];
-        if (dir != null && dir != "UNKNOWN" && dir.isNotEmpty) {
-          directorCounts[dir] = (directorCounts[dir] ?? 0) + 1;
-        }
-      }
+      // Score each candidate
+      final scoredCandidates = filtered.map((m) {
+        final score = _scoreCandidate(m, profile);
+        final explanation = _buildExplanation(m, profile);
+        return _ScoredMovie(movie: m, score: score, explanation: explanation);
+      }).toList()
+        ..sort((a, b) => b.score.compareTo(a.score));
 
-      // 2. FETCH POOLS
-      List<MovieModel> directorPool = [];
-      List<MovieModel> genrePool = [];
-      String finalTitle = "THE ARCHIVE SELECTION";
-      String? affinityDirector;
+      // 5. DIVERSITY MIXING: 65% confidence + 20% serendipity + 15% community
+      const int targetTotal = 15;
+      final int confidentCount = (targetTotal * 0.65).ceil();
+      final int serendipityCount = (targetTotal * 0.20).ceil();
 
-      // WISE TIERED SELECTION (Fixed logic for Threshold 2 fallback)
-      if (directorCounts.isNotEmpty && !isTv) {
-        // Tier 1: Try to find directors with 2+ watches (High Affinity)
-        var highAffinity = directorCounts.entries
-            .where((entry) => entry.value >= 2)
-            .map((entry) => entry.key)
-            .toList();
+      final List<MovieModel> result = [];
+      final Set<int> addedIds = {};
 
-        if (highAffinity.isNotEmpty) {
-          highAffinity.shuffle();
-          affinityDirector = highAffinity.first;
-        } 
-        // Tier 2: Graceful Degradation to 1+ watch (Solves the "Genre Switch" issue)
-        else {
-          var eligibleDirectors = directorCounts.keys.toList();
-          eligibleDirectors.shuffle();
-          affinityDirector = eligibleDirectors.first;
-        }
-
-        if (affinityDirector != null) {
-          directorPool = await getMoviesByDirector(affinityDirector);
+      // Confident picks (top-scored)
+      for (final sm in scoredCandidates.take(confidentCount)) {
+        if (addedIds.add(sm.movie.id)) {
+          result.add(MovieModel.fromJson({
+            ...sm.movie.toJson(),
+            'reason': sm.explanation,
+          }));
         }
       }
 
-      // Genre DNA Selection
-      int topGenreId = 28; 
-      if (weightedGenreCounts.isNotEmpty) {
-        topGenreId = weightedGenreCounts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+      // Serendipity picks
+      final serendipityFiltered = serendipityPool
+          .where((m) =>
+              !watchedIds.contains(m.id) && !addedIds.contains(m.id))
+          .take(serendipityCount)
+          .toList();
+      for (final m in serendipityFiltered) {
+        if (addedIds.add(m.id)) {
+          result.add(MovieModel.fromJson({
+            ...m.toJson(),
+            'reason': '✨ Exploring beyond your usual picks',
+            'isSerendipity': true,
+          }));
+        }
+      }
+
+      // Fill remainder from remaining scored
+      for (final sm in scoredCandidates) {
+        if (result.length >= targetTotal) break;
+        if (addedIds.add(sm.movie.id)) {
+          result.add(MovieModel.fromJson({
+            ...sm.movie.toJson(),
+            'reason': sm.explanation,
+          }));
+        }
+      }
+
+      // Shuffle for organic feel
+      result.shuffle(Random());
+
+      // Build title
+      String title;
+      if (isColdStart) {
+        title = 'THE VANGUARD';
+      } else if (topDirs.isNotEmpty && !isTv) {
+        final dirLast = topDirs.first.split(' ').last.toUpperCase();
+        title = '$dirLast · ${MovieModel.genreMap[primaryGenreId]?.toUpperCase() ?? 'CINEMA'}';
       } else {
-        topGenreId = isTv ? 18 : 28;
-      }
-      
-      String genreName = MovieModel.genreMap[topGenreId] ?? 'Cinema';
-      genrePool = await getMediaByGenre(topGenreId, isTv: isTv);
-
-      // 3. MERGE & DEDUPLICATE
-      List<MovieModel> rawCombinedList = [];
-      Set<int> seenIds = {};
-
-      if (affinityDirector != null && !isTv) {
-        // Balanced Ratio: 7 from Director (or all they have), then fill with Genre
-        for (var m in directorPool.take(7)) {
-          if (seenIds.add(m.id)) rawCombinedList.add(m);
-        }
-        for (var m in genrePool) {
-          if (rawCombinedList.length >= 15) break;
-          if (seenIds.add(m.id)) rawCombinedList.add(m);
-        }
-        finalTitle = "${affinityDirector.split(' ').last} + $genreName";
-      } else {
-        rawCombinedList = genrePool;
-        finalTitle = "CURATED $genreName";
+        title = 'CURATED ${MovieModel.genreMap[primaryGenreId]?.toUpperCase() ?? 'PICKS'}';
       }
 
-      // 4. FILTER WATCHED & INJECT DNA PERCENTAGES
-      List<MovieModel> filteredList = rawCombinedList.where((m) => !watchedIds.contains(m.id)).toList();
-
-      // RESILIENCE FALLBACK: If filtering left us with an empty or tiny list, fall back to genre pool without strict watched filtering, or the popular fallback list
-      if (filteredList.isEmpty) {
-        filteredList = rawCombinedList.isNotEmpty ? rawCombinedList : fallbackList;
-      }
-
-      List<MovieModel> finalScoredList = filteredList.map((movie) {
-        int matchScore = _calculateMatchPercentage(
-          movie: movie, 
-          weightedGenres: weightedGenreCounts, 
-          affinityDirector: affinityDirector
-        );
-        
-        return MovieModel.fromJson({
-          ...movie.toJson(),
-          'reason': "$matchScore% Match", 
-        });
-      }).toList()..shuffle();
-
-      return {
-        'title': finalTitle.toUpperCase(), 
-        'movies': finalScoredList.take(15).toList()
-      };
+      return {'title': title, 'movies': result};
     } catch (e) {
-      debugPrint("Recommendation Engine Failure: $e");
-      // Resilient top fallback
+      debugPrint('RecommendationEngineV2 failure: $e');
       try {
-        final fallbackPool = await getMediaByGenre(isTv ? 18 : 28, isTv: isTv);
+        final fallback = await getMediaByGenre(isTv ? 18 : 28, isTv: isTv);
         return {
           'title': isTv ? 'SERIES CHRONICLE' : 'ARCHIVAL SELECTIONS',
-          'movies': fallbackPool.take(15).toList()
+          'movies': fallback.take(15).toList(),
         };
       } catch (_) {
         return {'title': 'ARCHIVAL SELECTIONS', 'movies': []};
@@ -190,30 +195,131 @@ class MovieService {
     }
   }
 
-  // --- DNA MATCH CALCULATION LOGIC ---
-  int _calculateMatchPercentage({
-    required MovieModel movie, 
-    required Map<int, double> weightedGenres, 
-    String? affinityDirector
-  }) {
-    double score = 65.0; 
+  /// Score a single candidate movie against the user's taste profile.
+  double _scoreCandidate(MovieModel movie, UserTasteProfile profile) {
+    double score = 0.0;
 
-    if (affinityDirector != null && movie.director == affinityDirector) {
-      score += 25.0;
+    // --- Genre affinity (40%) ---
+    double genreScore = 0.0;
+    final genreScores = profile.genreScores;
+    for (final gId in movie.genreIds) {
+      final gs = genreScores[gId.toString()];
+      if (gs != null && !gs.isAvoidance) {
+        genreScore += gs.score.clamp(0, 5);
+      }
+    }
+    if (movie.genreIds.isNotEmpty) {
+      genreScore = (genreScore / movie.genreIds.length).clamp(0, 5);
+    }
+    score += genreScore * 0.40;
+
+    // --- Director affinity (25%) ---
+    if (movie.director != null) {
+      final ds = profile.directorScores[movie.director!];
+      if (ds != null) {
+        score += (ds.score.clamp(0, 5)) * 0.25;
+      }
     }
 
-    if (weightedGenres.isNotEmpty) {
-      var sortedGenres = weightedGenres.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      var top3Ids = sortedGenres.take(3).map((e) => e.key).toSet();
-      
-      int matches = movie.genreIds.where((id) => top3Ids.contains(id)).length;
-      score += (matches * 7.0); 
+    // --- Popularity match (15%) ---
+    final pop = _classifyPopularity(movie.voteCount, movie.voteAverage);
+    final prefPop = profile.preferredPopularity;
+    if ((pop == 'underrated' && prefPop == PopularityPreference.underrated) ||
+        (pop == 'mainstream' && prefPop == PopularityPreference.mainstream) ||
+        (pop == 'overrated' && prefPop == PopularityPreference.overrated)) {
+      score += 5.0 * 0.15;
+    } else if (prefPop == PopularityPreference.mixed) {
+      score += 2.5 * 0.15;
     }
 
-    score += (movie.voteAverage * 1.0); 
+    // --- TMDB quality baseline (10%) ---
+    score += (movie.voteAverage / 10.0) * 5.0 * 0.10;
 
-    return score.clamp(70, 99).toInt();
+    // --- Recency bonus (10%) ---
+    try {
+      final year = int.tryParse(movie.releaseDate.split('-').first) ?? 0;
+      final currentYear = DateTime.now().year;
+      if (year >= currentYear - 2) score += 5.0 * 0.10;
+    } catch (_) {}
+
+    return score;
+  }
+
+  String _buildExplanation(MovieModel movie, UserTasteProfile profile) {
+    final topDirs = profile.topDirectors(n: 1);
+    final topGenres = profile.topGenreIds(n: 2);
+
+    // Director match
+    if (movie.director != null &&
+        topDirs.isNotEmpty &&
+        movie.director == topDirs.first) {
+      return 'Because you love ${movie.director}\'s work';
+    }
+
+    // Genre match with cinecast keyword
+    final genreMatch = movie.genreIds
+        .any((g) => topGenres.contains(g));
+    if (genreMatch && profile.cinecastKeywords.isNotEmpty) {
+      return 'Matches your love of ${profile.cinecastKeywords.first}';
+    }
+
+    // Underrated pick
+    final pop = _classifyPopularity(movie.voteCount, movie.voteAverage);
+    if (pop == 'underrated' && profile.prefersUnderrated) {
+      return 'A hidden gem matching your taste for underrated films';
+    }
+
+    // Generic match
+    if (genreMatch) {
+      final genreLabel = movie.genreIds
+          .map((g) => MovieModel.genreMap[g])
+          .where((n) => n != null)
+          .firstOrNull ?? 'your genre';
+      return 'Curated for your love of $genreLabel';
+    }
+
+    return 'Curated from your Archival DNA';
+  }
+
+  String _classifyPopularity(int voteCount, double voteAverage) {
+    if (voteCount > 100000 && voteAverage > 7.5) return 'overrated';
+    if (voteCount < 10000 && voteAverage > 7.0) return 'underrated';
+    return 'mainstream';
+  }
+
+  Future<Set<int>> _getWatchedIds(String uid) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('movies')
+          .where('status', isEqualTo: 'watched')
+          .get();
+      return snap.docs.map((d) => int.tryParse(d.id) ?? 0).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<List<MovieModel>> _fetchSerendipityPool(
+      UserTasteProfile profile, {required bool isTv}) async {
+    try {
+      // Pick a genre NOT in user's top 3 for variety
+      final allGenreIds = MovieModel.genreMap.keys.toList();
+      final topGenres = profile.topGenreIds(n: 3).toSet();
+      final avoidGenres = profile.avoidGenres.toSet();
+      final candidateGenres = allGenreIds
+          .where((g) => !topGenres.contains(g) && !avoidGenres.contains(g))
+          .toList();
+
+      if (candidateGenres.isEmpty) {
+        return await getMediaByGenre(isTv ? 18 : 28, isTv: isTv);
+      }
+      candidateGenres.shuffle(Random());
+      return await getMediaByGenre(candidateGenres.first, isTv: isTv);
+    } catch (_) {
+      return [];
+    }
   }
 
   // --- API METHODS (PARALLELIZED & FAIL-FAST) ---
@@ -402,31 +508,17 @@ class MovieService {
     return [];
   }
 
-  // --- SCREENU: SEARCH BY TITLE FOR BOT ENRICHMENT ---
-  Future<MovieModel?> searchMovieByTitle(String title, {String? year}) async {
-    try {
-      String url = '$_baseUrl/search/multi?api_key=$_apiKey&query=${Uri.encodeComponent(title)}';
-      if (year != null && year.isNotEmpty) {
-        url += '&year=$year';
-      }
-      final response = await http.get(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final List results = json.decode(response.body)['results'] ?? [];
-        // Filter to movies and TV shows only, skip people
-        final mediaResults = results.where((r) =>
-            r['media_type'] == 'movie' || r['media_type'] == 'tv' ||
-            r['poster_path'] != null).toList();
-        if (mediaResults.isNotEmpty) {
-          return MovieModel.fromJson({
-            ...mediaResults.first,
-            'isPerson': false,
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error in searchMovieByTitle: $e");
-    }
-    return null;
-  }
+
+}
+
+// ─────────────── INTERNAL HELPER ───────────────
+class _ScoredMovie {
+  final MovieModel movie;
+  final double score;
+  final String explanation;
+  const _ScoredMovie({
+    required this.movie,
+    required this.score,
+    required this.explanation,
+  });
 }

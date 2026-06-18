@@ -276,13 +276,30 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
                   children: [
                     Align(
                       alignment: Alignment.topLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        color: const Color(0xFFD32F2F),
-                        child: Text(
-                          isDirectorMatch ? movie.director?.toUpperCase() ?? "CURATED PICK" : "CURATED PICK",
-                          style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 7, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Serendipity badge
+                          if (movie.broadcastReason?.startsWith('✨') == true)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              color: const Color(0xFF1A4A1A),
+                              child: const Text('✨ EXPLORING',
+                                  style: TextStyle(color: Color(0xFF66FF66), fontSize: 7, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                            ),
+                          // Director / Reason tag
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            color: const Color(0xFFD32F2F),
+                            child: Text(
+                              isDirectorMatch
+                                  ? (movie.director?.toUpperCase() ?? 'CURATED PICK')
+                                  : 'CURATED PICK',
+                              style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 7, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -343,7 +360,27 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
                         ),
                         const Icon(Icons.bookmark_border_rounded, color: Color(0xFF111111), size: 16),
                       ],
-                    )
+                    ),
+                    // "Why" explanation chip
+                    if (movie.broadcastReason != null && movie.broadcastReason!.isNotEmpty) ...[  
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        color: const Color(0xFFEEEEE6),
+                        child: Text(
+                          movie.broadcastReason!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF454545),
+                            fontSize: 7.5,
+                            fontStyle: FontStyle.italic,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

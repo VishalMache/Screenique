@@ -1,208 +1,454 @@
-/// Taste DNA Profile Service
-/// Reads ALL user data from Firestore and builds a structured "taste profile"
-/// string that gets injected into ScreenU's system prompt for hyper-personalized
-/// recommendations.
+/// TasteProfileService — Builds and maintains a dynamic, hierarchical
+/// user taste profile from Watched+Ratings, Watchlist intent, and Cinecast.
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/movie_model.dart';
+import '../models/taste_profile_model.dart';
+import 'bot_service.dart';
+
+// ─────────────── THRESHOLDS ───────────────
+const int _kOverratedVoteThreshold = 100000;
+const int _kUnderratedVoteThreshold = 10000;
+const double _kHighRatingThreshold = 4.0;
+const double _kLowRatingThreshold = 2.5;
+
+// ─────────────── CINECAST KEYWORDS ───────────────
+const List<String> _kPositiveKeywords = [
+  'masterpiece', 'stunning', 'breathtaking', 'mind-bending', 'arthouse',
+  'cinematography', 'beautiful', 'profound', 'complex', 'layered',
+  'underrated', 'hidden gem', 'emotional', 'powerful', 'iconic',
+  'atmospheric', 'thought-provoking', 'brilliant', 'timeless', 'intense',
+  'gripping', 'visually', 'poetic', 'haunting', 'surreal', 'epic',
+];
+const List<String> _kNegativeKeywords = [
+  'boring', 'cliche', 'predictable', 'overrated', 'jumpscares', 'generic',
+  'shallow', 'disappointing', 'slow', 'confusing', 'forgettable', 'mediocre',
+  'waste', 'bad acting', 'awful', 'terrible', 'worst',
+];
 
 class TasteProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Builds a complete Taste DNA string from the user's Firestore data.
-  /// This string is injected directly into ScreenU's system prompt.
-  Future<String> buildTasteDNA(String uid) async {
+  // ─────────────── READ ───────────────
+
+  /// Fetch profile from Firestore. Returns empty if not found.
+  Future<UserTasteProfile> getProfile(String uid) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        return UserTasteProfile.empty(uid);
+      }
+      return UserTasteProfile.fromJson(doc.data()!);
+    } catch (e) {
+      debugPrint('TasteProfileService.getProfile error: $e');
+      return UserTasteProfile.empty(uid);
+    }
+  }
+
+  // ─────────────── FULL REBUILD ───────────────
+
+  /// Full rebuild from scratch — call on login / first open / manual refresh.
+  Future<UserTasteProfile> buildAndSaveProfile(String uid) async {
     try {
       final results = await Future.wait([
         _fetchWatchedMovies(uid),
         _fetchWatchlistMovies(uid),
-        _fetchTopFive(uid),
-        _fetchExperiences(uid),
-        _fetchPlaylists(uid),
+        _fetchCinecastPosts(uid),
+        _fetchLikedPosts(uid),
       ]);
 
       final watched = results[0] as List<Map<String, dynamic>>;
       final watchlist = results[1] as List<Map<String, dynamic>>;
-      final topFive = results[2] as List<Map<String, dynamic>>;
-      final experiences = results[3] as List<Map<String, dynamic>>;
-      final playlists = results[4] as List<Map<String, dynamic>>;
+      final myPosts = results[2] as List<Map<String, dynamic>>;
+      final likedPosts = results[3] as List<Map<String, dynamic>>;
 
-      return _compileDNA(
-        watched: watched,
-        watchlist: watchlist,
-        topFive: topFive,
-        experiences: experiences,
-        playlists: playlists,
+      // --- SIGNAL 1: Watched + Ratings ---
+      final Map<String, double> genreScoreMap = {};
+      final Map<String, int> directorCountMap = {};
+      final Map<String, double> directorScoreMap = {};
+      final Set<int> avoidGenreSet = {};
+      final List<int> recentGenreList = [];
+      final Set<String> exploratoryCountries = {};
+      int watchedCount = 0;
+
+      // Sort by watchedAt for recency
+      watched.sort((a, b) {
+        final aDate = a['watchedAt'] as String? ?? '';
+        final bDate = b['watchedAt'] as String? ?? '';
+        return bDate.compareTo(aDate);
+      });
+
+      for (int i = 0; i < watched.length; i++) {
+        final data = watched[i];
+        final double userRating = (data['userRating'] ?? 3.0).toDouble();
+        final bool isHighRated = userRating >= _kHighRatingThreshold;
+        final bool isLowRated = userRating <= _kLowRatingThreshold;
+        final bool isRecent = i < 10;
+
+        // Recency boost multiplier
+        double recencyMultiplier = isRecent ? 1.3 : 1.0;
+        // Rating weight
+        double ratingWeight = isHighRated ? 2.0 : (isLowRated ? -1.0 : 0.5);
+        double finalWeight = ratingWeight * recencyMultiplier;
+
+        // Genre scoring
+        final List gIds = data['genreIds'] ?? data['genre_ids'] ?? [];
+        for (final id in gIds) {
+          final key = id.toString();
+          genreScoreMap[key] = (genreScoreMap[key] ?? 0.0) + finalWeight;
+          if (isLowRated) avoidGenreSet.add(id as int);
+          if (isRecent) recentGenreList.add(id as int);
+        }
+
+        // Director scoring
+        final String? dir = data['director'];
+        if (dir != null && dir.isNotEmpty && dir != 'UNKNOWN') {
+          directorCountMap[dir] = (directorCountMap[dir] ?? 0) + 1;
+          final dirWeight = isHighRated ? 2.5 : (isLowRated ? -0.5 : 1.0);
+          directorScoreMap[dir] = (directorScoreMap[dir] ?? 0.0) +
+              dirWeight * recencyMultiplier;
+        }
+
+        // Country tracking
+        final String? country = data['originCountry'];
+        if (country != null && country.isNotEmpty) {
+          exploratoryCountries.add(country);
+        }
+
+        watchedCount++;
+      }
+
+      // Build final genre score objects
+      final Map<String, GenreScore> genreScores = {};
+      genreScoreMap.forEach((id, score) {
+        final intId = int.tryParse(id) ?? 0;
+        final label = MovieModel.genreMap[intId] ?? 'Genre';
+        final isAvoid = avoidGenreSet.contains(intId) && score < 0;
+        genreScores[id] = GenreScore(
+          genreId: intId,
+          label: label,
+          score: score,
+          isAvoidance: isAvoid,
+        );
+      });
+
+      // Build director score objects
+      final Map<String, DirectorScore> directorScores = {};
+      directorScoreMap.forEach((name, score) {
+        directorScores[name] = DirectorScore(
+          name: name,
+          score: score,
+          watchCount: directorCountMap[name] ?? 1,
+        );
+      });
+
+      // --- SIGNAL 2: Watchlist intent (popularity classification) ---
+      int underratedCount = 0, mainstreamCount = 0, overratedCount = 0;
+      for (final m in watchlist) {
+        final int vc = (m['voteCount'] ?? 0).toInt();
+        final double va = (m['voteAverage'] ?? 0.0).toDouble();
+        final pop = _classifyPopularity(vc, va);
+        if (pop == 'underrated') underratedCount++;
+        else if (pop == 'overrated') overratedCount++;
+        else mainstreamCount++;
+      }
+      final int total = underratedCount + mainstreamCount + overratedCount;
+      final Map<String, double> popularityBreakdown = total > 0
+          ? {
+              'underrated': underratedCount / total,
+              'mainstream': mainstreamCount / total,
+              'overrated': overratedCount / total,
+            }
+          : {'underrated': 0.33, 'mainstream': 0.33, 'overrated': 0.33};
+
+      PopularityPreference pref = PopularityPreference.mixed;
+      if (total > 0) {
+        final maxEntry = popularityBreakdown.entries
+            .reduce((a, b) => a.value > b.value ? a : b);
+        if (maxEntry.value > 0.5) {
+          if (maxEntry.key == 'underrated') pref = PopularityPreference.underrated;
+          else if (maxEntry.key == 'mainstream') pref = PopularityPreference.mainstream;
+          else pref = PopularityPreference.overrated;
+        }
+      }
+
+      // --- SIGNAL 3: Cinecast (keyword + sentiment extraction) ---
+      final allPosts = [...myPosts, ...likedPosts];
+      final Set<String> positiveKeywords = {};
+      final Set<String> negativeKeywords = {};
+      final Set<String> mentionedKeywords = {};
+
+      for (final post in allPosts) {
+        final String text =
+            ((post['reason'] ?? '') as String).toLowerCase();
+        for (final kw in _kPositiveKeywords) {
+          if (text.contains(kw)) {
+            mentionedKeywords.add(kw);
+            positiveKeywords.add(kw);
+          }
+        }
+        for (final kw in _kNegativeKeywords) {
+          if (text.contains(kw)) negativeKeywords.add(kw);
+        }
+      }
+
+      // Build avoidGenres list (genres with negative score only)
+      final List<int> avoidGenreList = genreScores.entries
+          .where((e) => e.value.isAvoidance)
+          .map((e) => e.value.genreId)
+          .toList();
+
+      // Deduplicate recentGenres
+      final List<int> uniqueRecentGenres =
+          recentGenreList.toSet().take(8).toList();
+
+      final profile = UserTasteProfile(
+        userId: uid,
+        lastUpdated: DateTime.now(),
+        watchedCount: watchedCount,
+        genreScores: genreScores,
+        directorScores: directorScores,
+        castAffinities: const [], // Phase 2 enhancement
+        preferredPopularity: pref,
+        popularityBreakdown: popularityBreakdown,
+        cinecastKeywords: mentionedKeywords.take(15).toList(),
+        cinecastSentiment: {
+          'positive': positiveKeywords.take(10).toList(),
+          'negative': negativeKeywords.take(10).toList(),
+        },
+        recentGenres: uniqueRecentGenres,
+        avoidGenres: avoidGenreList,
+        exploratoryCountries: exploratoryCountries.toList(),
+        onboardingComplete: watchedCount > 0,
+        coldStartGenres: const [],
       );
+
+      await _saveProfile(uid, profile);
+      debugPrint('TasteProfileService: Profile rebuilt for $uid (${watchedCount} watched)');
+      return profile;
     } catch (e) {
-      debugPrint('TasteProfileService error: $e');
-      return '=== USER TASTE DNA ===\nNew user — no watch history yet.\n===';
+      debugPrint('TasteProfileService.buildAndSaveProfile error: $e');
+      return UserTasteProfile.empty(uid);
     }
+  }
+
+  // ─────────────── INCREMENTAL UPDATES ───────────────
+
+  /// Call after a movie is rated. Updates genre + director scores incrementally.
+  Future<void> updateFromRating(
+      String uid, int movieId, double newRating) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('movies')
+          .doc(movieId.toString())
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      final List gIds = data['genreIds'] ?? data['genre_ids'] ?? [];
+      final String? dir = data['director'];
+
+      // Only do a delta update if it's material
+      final double weight = newRating >= _kHighRatingThreshold ? 1.5 : (newRating <= _kLowRatingThreshold ? -1.0 : 0.3);
+
+      final Map<String, dynamic> updates = {};
+      for (final id in gIds) {
+        updates['genreScores.${id}.score'] = FieldValue.increment(weight);
+        updates['genreScores.${id}.label'] =
+            MovieModel.genreMap[id] ?? 'Genre';
+        if (newRating <= _kLowRatingThreshold) {
+          updates['genreScores.${id}.avoidance'] = true;
+        }
+      }
+      if (dir != null && dir.isNotEmpty && dir != 'UNKNOWN') {
+        final double dirWeight = newRating >= _kHighRatingThreshold ? 1.5 : (newRating <= _kLowRatingThreshold ? -0.5 : 0.3);
+        updates['directorScores.$dir.score'] = FieldValue.increment(dirWeight);
+        updates['directorScores.$dir.watchCount'] = FieldValue.increment(1);
+      }
+      updates['lastUpdated'] = FieldValue.serverTimestamp();
+
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set(updates, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('TasteProfileService.updateFromRating error: $e');
+    }
+  }
+
+  /// Call when a movie is added to watchlist. Updates popularity breakdown.
+  Future<void> updateFromWatchlistAdd(String uid, MovieModel movie) async {
+    try {
+      final String pop = _classifyPopularity(movie.voteCount, movie.voteAverage);
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set({
+        'popularityBreakdown.$pop': FieldValue.increment(0.1),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('TasteProfileService.updateFromWatchlistAdd error: $e');
+    }
+  }
+
+  /// Call after a Cinecast post. Extracts keywords async.
+  Future<void> extractCinecastKeywords(String uid, String postText) async {
+    try {
+      final text = postText.toLowerCase();
+      final List<String> foundPositive = [];
+      final List<String> foundNegative = [];
+
+      for (final kw in _kPositiveKeywords) {
+        if (text.contains(kw)) foundPositive.add(kw);
+      }
+      for (final kw in _kNegativeKeywords) {
+        if (text.contains(kw)) foundNegative.add(kw);
+      }
+
+      if (foundPositive.isEmpty && foundNegative.isEmpty) return;
+
+      final Map<String, dynamic> updates = {
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+      if (foundPositive.isNotEmpty) {
+        updates['cinecastKeywords'] = FieldValue.arrayUnion(foundPositive);
+        updates['cinecastSentiment.positive'] =
+            FieldValue.arrayUnion(foundPositive);
+      }
+      if (foundNegative.isNotEmpty) {
+        updates['cinecastSentiment.negative'] =
+            FieldValue.arrayUnion(foundNegative);
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set(updates, SetOptions(merge: true));
+
+      // Phase 3: Proactively summarize with LLM in background
+      BotService().summarizeCinecastActivity(uid);
+    } catch (e) {
+      debugPrint('TasteProfileService.extractCinecastKeywords error: $e');
+    }
+  }
+
+  /// Save onboarding cold-start genres.
+  Future<void> saveOnboardingPreferences(
+      String uid, List<int> genreIds) async {
+    try {
+      final Map<String, dynamic> data = {
+        'userId': uid,
+        'onboardingComplete': true,
+        'coldStartGenres': genreIds,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+      // Seed genreScores from onboarding
+      for (final id in genreIds) {
+        data['genreScores.$id.score'] = 1.5;
+        data['genreScores.$id.label'] = MovieModel.genreMap[id] ?? 'Genre';
+      }
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set(data, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('TasteProfileService.saveOnboardingPreferences error: $e');
+    }
+  }
+
+  // ─────────────── PRIVATE HELPERS ───────────────
+
+  Future<void> _saveProfile(String uid, UserTasteProfile profile) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('taste_profile')
+        .doc('main')
+        .set(profile.toJson());
   }
 
   Future<List<Map<String, dynamic>>> _fetchWatchedMovies(String uid) async {
-    final snapshot = await _firestore
-        .collection('users').doc(uid)
+    final snap = await _firestore
+        .collection('users')
+        .doc(uid)
         .collection('movies')
         .where('status', isEqualTo: 'watched')
         .get();
-    return snapshot.docs.map((d) => d.data()).toList();
+    return snap.docs.map((d) => d.data()).toList();
   }
 
   Future<List<Map<String, dynamic>>> _fetchWatchlistMovies(String uid) async {
-    final snapshot = await _firestore
-        .collection('users').doc(uid)
+    final snap = await _firestore
+        .collection('users')
+        .doc(uid)
         .collection('movies')
         .where('status', isEqualTo: 'watchlist')
         .get();
-    return snapshot.docs.map((d) => d.data()).toList();
+    return snap.docs.map((d) => d.data()).toList();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchTopFive(String uid) async {
-    final snapshot = await _firestore
-        .collection('users').doc(uid)
-        .collection('top_five')
-        .get();
-    return snapshot.docs.map((d) => d.data()).toList();
+  Future<List<Map<String, dynamic>>> _fetchCinecastPosts(String uid) async {
+    try {
+      // Query community_recs filtered by senderId == uid (no mirror collection needed)
+      final snap = await _firestore
+          .collection('community_recs')
+          .where('senderId', isEqualTo: uid)
+          .where('type', isEqualTo: 'movie')
+          .limit(30)
+          .get();
+      return snap.docs.map((d) => d.data()).toList();
+    } catch (e) {
+      return [];
+    }
   }
 
-  Future<List<Map<String, dynamic>>> _fetchExperiences(String uid) async {
-    final snapshot = await _firestore
-        .collection('users').doc(uid)
-        .collection('experiences')
-        .orderBy('timestamp', descending: true)
-        .limit(20) // Latest 20 experiences
-        .get();
-    return snapshot.docs.map((d) => d.data()).toList();
+  Future<List<Map<String, dynamic>>> _fetchLikedPosts(String uid) async {
+    try {
+      final snap = await _firestore
+          .collection('community_recs')
+          .where('likedBy', arrayContains: uid)
+          .where('type', isEqualTo: 'movie')
+          .limit(30)
+          .get();
+      return snap.docs.map((d) => d.data()).toList();
+    } catch (e) {
+      return [];
+    }
   }
 
-  Future<List<Map<String, dynamic>>> _fetchPlaylists(String uid) async {
-    final snapshot = await _firestore
-        .collection('users').doc(uid)
-        .collection('playlists')
-        .get();
-    return snapshot.docs.map((d) => d.data()).toList();
+  /// Classifies a movie by TMDB vote_count + vote_average.
+  String _classifyPopularity(int voteCount, double voteAverage) {
+    if (voteCount > _kOverratedVoteThreshold && voteAverage > 7.5) {
+      return 'overrated'; // Very popular AND highly rated
+    }
+    if (voteCount < _kUnderratedVoteThreshold && voteAverage > 7.0) {
+      return 'underrated'; // Few votes but solid quality
+    }
+    return 'mainstream';
   }
 
-  /// Compiles all the raw Firestore data into a structured DNA string.
-  String _compileDNA({
-    required List<Map<String, dynamic>> watched,
-    required List<Map<String, dynamic>> watchlist,
-    required List<Map<String, dynamic>> topFive,
-    required List<Map<String, dynamic>> experiences,
-    required List<Map<String, dynamic>> playlists,
-  }) {
-    final buffer = StringBuffer();
-    buffer.writeln('=== USER TASTE DNA ===');
+  // ─────────────── LEGACY COMPATIBILITY ───────────────
 
-    // --- OVERVIEW ---
-    final movieCount = watched.where((m) => m['isTvShow'] != true).length;
-    final seriesCount = watched.where((m) => m['isTvShow'] == true).length;
-    buffer.writeln('WATCHED: ${watched.length} titles ($movieCount movies, $seriesCount series)');
-
-    if (watched.isEmpty) {
-      buffer.writeln('New user — no watch history yet. Give popular, well-reviewed recommendations.');
-      buffer.writeln('===');
-      return buffer.toString();
-    }
-
-    // --- GENRE ANALYSIS ---
-    final Map<int, int> genreCounts = {};
-    for (var m in watched) {
-      final List? gIds = m['genreIds'] ?? m['genre_ids'];
-      if (gIds != null) {
-        for (var id in gIds) {
-          if (id is int) genreCounts[id] = (genreCounts[id] ?? 0) + 1;
-        }
-      }
-    }
-    if (genreCounts.isNotEmpty) {
-      final sortedGenres = genreCounts.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      final total = sortedGenres.fold<int>(0, (sum, e) => sum + e.value);
-      final topGenres = sortedGenres.take(5).map((e) {
-        final name = MovieModel.genreMap[e.key] ?? 'Unknown';
-        final pct = ((e.value / total) * 100).round();
-        return '$name ($pct%)';
-      }).join(', ');
-      buffer.writeln('TOP GENRES: $topGenres');
-    }
-
-    // --- DIRECTOR ANALYSIS ---
-    final Map<String, List<double>> directorData = {};
-    for (var m in watched) {
-      final dir = m['director'] as String?;
-      final rating = (m['userRating'] ?? 0.0).toDouble();
-      if (dir != null && dir.isNotEmpty && dir != 'UNKNOWN') {
-        directorData.putIfAbsent(dir, () => []).add(rating);
-      }
-    }
-    if (directorData.isNotEmpty) {
-      final sortedDirs = directorData.entries.toList()
-        ..sort((a, b) => b.value.length.compareTo(a.value.length));
-      final topDirs = sortedDirs.take(5).map((e) {
-        final avg = e.value.isEmpty ? 0.0 : e.value.reduce((a, b) => a + b) / e.value.length;
-        return '${e.key} (${e.value.length} films, avg ${avg.toStringAsFixed(1)}★)';
-      }).join(', ');
-      buffer.writeln('FAVORITE DIRECTORS: $topDirs');
-    }
-
-    // --- HIGHEST / LOWEST RATED ---
-    final ratedMovies = watched.where((m) => (m['userRating'] ?? 0.0) > 0).toList()
-      ..sort((a, b) => ((b['userRating'] ?? 0.0) as num).compareTo((a['userRating'] ?? 0.0) as num));
-    
-    if (ratedMovies.isNotEmpty) {
-      final highest = ratedMovies.take(5).map((m) => "${m['title']} (${m['userRating']}★)").join(', ');
-      buffer.writeln('HIGHEST RATED: $highest');
-      
-      final lowest = ratedMovies.reversed.take(3).where((m) => (m['userRating'] ?? 0.0) <= 2.5)
-          .map((m) => "${m['title']} (${m['userRating']}★)").join(', ');
-      if (lowest.isNotEmpty) buffer.writeln('LOWEST RATED (AVOID SIMILAR): $lowest');
-    }
-
-    // --- TOP FIVE / SPOTLIGHT ---
-    if (topFive.isNotEmpty) {
-      final names = topFive.map((m) => m['title'] ?? 'Unknown').join(', ');
-      buffer.writeln('SPOTLIGHT (TOP 5 FAVORITES): $names');
-    }
-
-    // --- WATCHLIST (AVOIDANCE) ---
-    if (watchlist.isNotEmpty) {
-      final names = watchlist.map((m) => m['title'] ?? 'Unknown').join(', ');
-      buffer.writeln('WATCHLIST (ALREADY PLANNING TO WATCH — DO NOT RECOMMEND): $names');
-    }
-
-    // --- WATCHED TITLES (FULL LIST FOR AVOIDANCE) ---
-    final watchedTitles = watched.map((m) => m['title'] ?? 'Unknown').join(', ');
-    buffer.writeln('ALL WATCHED TITLES (DO NOT RECOMMEND ANY OF THESE): $watchedTitles');
-
-    // --- RECENT WATCHES WITH REVIEWS ---
-    final recentWithNotes = watched
-        .where((m) => m['personalNote'] != null && (m['personalNote'] as String).trim().isNotEmpty)
-        .take(10);
-    if (recentWithNotes.isNotEmpty) {
-      final reviews = recentWithNotes.map((m) => 
-          "${m['title']} (${m['userRating'] ?? '?'}★): \"${m['personalNote']}\"").join('; ');
-      buffer.writeln('REVIEW EXCERPTS: $reviews');
-    }
-
-    // --- EXPERIENCES ---
-    if (experiences.isNotEmpty) {
-      final expSummary = experiences.take(5).map((e) =>
-          "${e['title']} at ${e['cinemaName'] ?? 'cinema'}").join(', ');
-      buffer.writeln('THEATRE EXPERIENCES: $expSummary');
-    }
-
-    // --- PLAYLISTS ---
-    if (playlists.isNotEmpty) {
-      final playlistSummary = playlists.map((p) {
-        final movieIds = p['movieIds'] as List? ?? [];
-        return '"${p['name']}" (${movieIds.length} films)';
-      }).join(', ');
-      buffer.writeln('PLAYLISTS: $playlistSummary');
-    }
-
-    buffer.writeln('===');
-    return buffer.toString();
+  /// Kept for backward compatibility with existing code that calls buildTasteDNA.
+  /// Returns a formatted string for LLM injection.
+  Future<String> buildTasteDNA(String uid) async {
+    final profile = await buildAndSaveProfile(uid);
+    return profile.toTasteString();
   }
 }

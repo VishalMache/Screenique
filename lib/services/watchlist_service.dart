@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/movie_model.dart';
 import 'movie_service.dart';
+import 'taste_profile_service.dart';
 
 class WatchlistService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -118,6 +119,8 @@ class WatchlistService {
       'likedBy': [],
       'commentCount': 0,
     });
+    // Async keyword extraction from the post text
+    TasteProfileService().extractCinecastKeywords(user.uid, reason);
   }
 
   Future<void> broadcastManualSong(String songName, String artistName, String reason) async {
@@ -317,6 +320,10 @@ class WatchlistService {
 
     await docRef.set(data, SetOptions(merge: true));
     await MovieService.clearCache();
+    // Incremental taste profile update on watchlist add
+    if (status == 'watchlist') {
+      TasteProfileService().updateFromWatchlistAdd(user.uid, movie);
+    }
   }
 
   // ───────────────── 🎲 RANDOM PICK (SHAKE) ─────────────────
@@ -356,6 +363,8 @@ class WatchlistService {
     if (user == null) return;
     await _firestore.collection('users').doc(user.uid).collection('movies').doc(movieId.toString()).update({'userRating': rating});
     await MovieService.clearCache();
+    // Incremental taste profile update after rating
+    TasteProfileService().updateFromRating(user.uid, movieId, rating);
   }
 
   Future<void> deleteMovie(int movieId) async {
