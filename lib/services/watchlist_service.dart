@@ -178,6 +178,63 @@ class WatchlistService {
     });
   }
 
+  Future<void> broadcastTextPost(String content) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? "Anonymous";
+    final watchedCount = await getWatchedCount();
+
+    await _firestore.collection('community_recs').add({
+      'type': 'text_post',
+      'senderId': user.uid,
+      'senderName': senderName,
+      'reason': content,
+      'timestamp': FieldValue.serverTimestamp(),
+      'senderRankCount': watchedCount,
+      'likes': [], // Legacy field
+      'viewCount': 0,
+      'viewedBy': [],
+      'likeCount': 0,
+      'likedBy': [],
+      'commentCount': 0,
+      'repostCount': 0,
+    });
+  }
+
+  Future<void> repostBroadcast(String originalDocId, Map<String, dynamic> originalData) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final senderName = userDoc.data()?['name'] ?? user.displayName ?? "Anonymous";
+    final watchedCount = await getWatchedCount();
+
+    final repostData = Map<String, dynamic>.from(originalData);
+    repostData['isRepost'] = true;
+    repostData['originalDocId'] = originalDocId;
+    repostData['reposterId'] = user.uid;
+    repostData['reposterName'] = senderName;
+    repostData['reposterRankCount'] = watchedCount;
+    repostData['timestamp'] = FieldValue.serverTimestamp();
+    
+    // reset stats for the repost
+    repostData['viewCount'] = 0;
+    repostData['viewedBy'] = [];
+    repostData['likeCount'] = 0;
+    repostData['likedBy'] = [];
+    repostData['commentCount'] = 0;
+    repostData['repostCount'] = 0;
+
+    await _firestore.collection('community_recs').add(repostData);
+    
+    // Update original doc repost count
+    await _firestore.collection('community_recs').doc(originalDocId).update({
+      'repostCount': FieldValue.increment(1),
+    });
+  }
+
   Future<bool> toggleBroadcastLike(String docId, String userId, bool isCurrentlyLiked) async {
     final docRef = _firestore.collection('community_recs').doc(docId);
     try {

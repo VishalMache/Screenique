@@ -94,9 +94,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
-        color: Color(0xFFF4F4EC),
+        color: const Color(0xFF0A0A0A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(top: BorderSide(color: Color(0xFF111111), width: 2)),
+        border: const Border(top: BorderSide(color: Color(0xFF222222), width: 1)),
       ),
       child: Column(
         children: [
@@ -106,7 +106,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFF888882),
+              color: Colors.white24,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -114,14 +114,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           const Text(
             "COMMENTS",
             style: TextStyle(
-              color: Color(0xFF111111),
+              color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w900,
               fontFamily: 'Impact',
               letterSpacing: 2,
             ),
           ),
-          const Divider(color: Color(0xFF111111), thickness: 1.5, height: 24),
+          const Divider(color: Colors.white, thickness: 1.5, height: 24),
           
           // Comments List
           Expanded(
@@ -143,7 +143,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   return const Center(
                     child: Text(
                       "No comments yet. Be the first!",
-                      style: TextStyle(color: Color(0xFF888882), fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold),
                     ),
                   );
                 }
@@ -168,8 +168,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
               bottom: MediaQuery.of(context).viewInsets.bottom + 16
             ),
             decoration: const BoxDecoration(
-              color: Color(0xFFF4F4EC),
-              border: Border(top: BorderSide(color: Color(0xFFE0E0DB), width: 1.5)),
+              color: const Color(0xFF0A0A0A),
+              border: const Border(top: BorderSide(color: Colors.white10, width: 1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,11 +183,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       children: [
                         Text(
                           "Replying to @$_replyingToUsername",
-                          style: const TextStyle(color: Color(0xFF454545), fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                         GestureDetector(
                           onTap: _cancelReply,
-                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF111111)),
+                          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white54),
                         )
                       ],
                     ),
@@ -198,17 +198,17 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEBEBE4),
+                          color: const Color(0xFF15181E),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                          border: Border.all(color: Colors.white10, width: 1),
                         ),
                         child: TextField(
                           controller: _commentController,
                           focusNode: _focusNode,
-                          style: const TextStyle(color: Color(0xFF111111), fontSize: 14),
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
                           decoration: const InputDecoration(
                             hintText: "Add a comment...",
-                            hintStyle: TextStyle(color: Color(0xFF888882)),
+                            hintStyle: TextStyle(color: Colors.white54),
                             border: InputBorder.none,
                           ),
                         ),
@@ -224,7 +224,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           color: Color(0xFFD32F2F),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.send_rounded, color: Color(0xFFF4F4EC), size: 18),
+                        child: const Icon(Icons.send_rounded, color: const Color(0xFF0A0A0A), size: 18),
                       ),
                     ),
                   ],
@@ -258,7 +258,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
         final name = userData['name'] ?? 'Unknown';
         final username = userData['username'] ?? '';
-        final photoUrl = 'https://ui-avatars.com/api/?name=$name&background=111111&color=f4f4ec';
+        final photoUrl = 'https://ui-avatars.com/api/?name=$name&background=222222&color=ffffff';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +272,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   child: CircleAvatar(
                     radius: 16,
                     backgroundImage: NetworkImage(photoUrl),
-                    backgroundColor: const Color(0xFF111111),
+                    backgroundColor: const Color(0xFF222222),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -284,23 +284,23 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         children: [
                           Text(
                             name.toUpperCase(),
-                            style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             _formatTime(timestamp),
-                            style: const TextStyle(color: Color(0xFF888882), fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(text, style: const TextStyle(color: Color(0xFF454545), fontSize: 13)),
+                      Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                       const SizedBox(height: 6),
                       Row(
                         children: [
                           GestureDetector(
                             onTap: () => _setReplyState(commentId, uid, username),
-                            child: const Text("Reply", style: TextStyle(color: Color(0xFF888882), fontSize: 12, fontWeight: FontWeight.bold)),
+                            child: const Text("Reply", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(width: 16),
                           GestureDetector(
@@ -310,10 +310,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             },
                             child: Row(
                               children: [
-                                Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 14, color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888882)),
+                                Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 14, color: isLiked ? const Color(0xFFD32F2F) : Colors.white54),
                                 if (likes.isNotEmpty) ...[
                                   const SizedBox(width: 4),
-                                  Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888882), fontSize: 11, fontWeight: FontWeight.bold)),
+                                  Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
                                 ]
                               ],
                             ),
@@ -322,7 +322,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             const SizedBox(width: 16),
                             GestureDetector(
                               onTap: () => _commentService.deleteComment(widget.postId, commentId),
-                              child: const Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFF888882)),
+                              child: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.white54),
                             ),
                           ]
                         ],
@@ -383,7 +383,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
         final name = userData['name'] ?? 'Unknown';
         final username = userData['username'] ?? '';
-        final photoUrl = 'https://ui-avatars.com/api/?name=$name&background=111111&color=f4f4ec';
+        final photoUrl = 'https://ui-avatars.com/api/?name=$name&background=222222&color=ffffff';
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -395,7 +395,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 child: CircleAvatar(
                   radius: 12,
                   backgroundImage: NetworkImage(photoUrl),
-                  backgroundColor: const Color(0xFF111111),
+                  backgroundColor: const Color(0xFF222222),
                 ),
               ),
               const SizedBox(width: 8),
@@ -407,23 +407,23 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       children: [
                         Text(
                           name.toUpperCase(),
-                          style: const TextStyle(color: Color(0xFF111111), fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           _formatTime(timestamp),
-                          style: const TextStyle(color: Color(0xFF888882), fontSize: 9, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(text, style: const TextStyle(color: Color(0xFF454545), fontSize: 12)),
+                    Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     const SizedBox(height: 6),
                     Row(
                       children: [
                         GestureDetector(
                           onTap: () => _setReplyState(commentId, uid, username),
-                          child: const Text("Reply", style: TextStyle(color: Color(0xFF888882), fontSize: 11, fontWeight: FontWeight.bold)),
+                          child: const Text("Reply", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(width: 16),
                         GestureDetector(
@@ -433,10 +433,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           },
                           child: Row(
                             children: [
-                              Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 12, color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888882)),
+                              Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 12, color: isLiked ? const Color(0xFFD32F2F) : Colors.white54),
                               if (likes.isNotEmpty) ...[
                                 const SizedBox(width: 4),
-                                Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888882), fontSize: 10, fontWeight: FontWeight.bold)),
+                                Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
                               ]
                             ],
                           ),
@@ -445,7 +445,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           const SizedBox(width: 16),
                           GestureDetector(
                             onTap: () => _commentService.deleteReply(widget.postId, commentId, replyId),
-                            child: const Icon(Icons.delete_outline_rounded, size: 12, color: Color(0xFF888882)),
+                            child: const Icon(Icons.delete_outline_rounded, size: 12, color: Colors.white54),
                           ),
                         ]
                       ],
