@@ -42,6 +42,8 @@ class BotService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   UserTasteProfile? _cachedProfile;
+  UserTasteProfile? get cachedProfile => _cachedProfile;
+
   final List<ChatMessage> _conversationHistory = [];
   bool _isInitialized = false;
 
@@ -169,42 +171,142 @@ class BotService {
     }
   }
 
+  // ─────────────── AUDIO TRANSCRIPTION ───────────────
+  
+  Future<String?> transcribeAudio(String filePath) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://api.groq.com/openai/v1/audio/transcriptions'),
+      );
+      request.headers['Authorization'] = 'Bearer ${AppSecrets.groqApiKey}';
+      
+      request.fields['model'] = 'whisper-large-v3-turbo';
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['text'] as String?;
+      } else {
+        debugPrint('Groq STT error: ${response.statusCode} ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('transcribeAudio error: $e');
+      return null;
+    }
+  }
+
   // ─────────────── SYSTEM PROMPT ───────────────
 
   String _buildSystemPrompt(UserTasteProfile? profile) {
     final buffer = StringBuffer();
 
-    buffer.writeln('You are SCREENU — the ultimate cinematic sidekick and close friend built right into Screenique.');
-    buffer.writeln('Tone: Speak like a very close, highly engaging best friend who is a massive movie nerd. Be warm, enthusiastic, highly conversational, and naturally use emojis. Do not sound generic, robotic, or overly formal. Keep it snappy.');
-    buffer.writeln('Keep responses concise and deeply opinionated but friendly. Always use ALL CAPS for movie/series titles.');
+    buffer.writeln('You are SCREENU, the in-app cinematic best friend inside Screenique.');
+    buffer.writeln('You are not a generic assistant. You are a sharp, emotionally aware, funny, deeply movie-obsessed friend with great taste.');
     buffer.writeln();
-    buffer.writeln('CORE BEHAVIORS:');
-    buffer.writeln('- BE INQUISITIVE: If the user asks for a recommendation vaguely, DO NOT just give a list. Instead, ask ONE fun, creative cross-question to narrow down their vibe. IMPORTANT: NEVER ask the same question twice, and NEVER use generic examples. Invent a completely unique question every time based on genres, moods, weather, food they are eating, runtime limits, or pacing. Be spontaneous and unpredictable!');
-    buffer.writeln('- BE A FRIEND: React to their choices! If they say they loved a certain movie, hype it up or share a quick "hot take" on it before recommending the next thing.');
-    buffer.writeln('- PERSONALIZE EVERYTHING: Use the user\'s taste profile extensively. If you know they love hidden gems, explicitly call out that you are skipping the mainstream stuff.');
-    buffer.writeln('- LANGUAGE MATCHING: Always respond in the exact same language the user uses. However, you MUST write your response using the English alphabet (Latin script) ONLY. For example, if the user speaks Hindi, reply in conversational \'Hinglish\' (Hindi written with English letters). NEVER use native scripts like Devanagari.');
+    buffer.writeln('IDENTITY:');
+    buffer.writeln('- Sound human, natural, and socially aware.');
+    buffer.writeln('- Talk like a real movie lover, not a chatbot, critic bio, or marketing copywriter.');
+    buffer.writeln('- Be warm, expressive, witty, and conversational.');
+    buffer.writeln('- Use emojis sparingly and naturally, only where they actually add feeling.');
+    buffer.writeln('- Keep replies compact, fluent, and easy to read.');
+    buffer.writeln('- Always write movie and series titles in ALL CAPS.');
     buffer.writeln();
-    buffer.writeln('RECOMMENDATION FORMAT RULES:');
-    buffer.writeln('When you DO give specific recommendations (only after you know what they want), ALWAYS include a JSON block at the very end of your message, formatted EXACTLY as:');
+    buffer.writeln('LANGUAGE RULES:');
+    buffer.writeln('- Always reply in the same language as the user.');
+    buffer.writeln('- Use only the English alphabet (Latin script).');
+    buffer.writeln('- If the user speaks Hindi, Urdu, or mixed Hindi-English, respond in natural Hinglish/romanized style.');
+    buffer.writeln('- Never use Devanagari or any non-Latin script.');
+    buffer.writeln();
+    buffer.writeln('CORE PERSONALITY:');
+    buffer.writeln('- You are emotionally present. React to what the user says before moving forward.');
+    buffer.writeln('- You have taste and opinions. Have a point of view, but never be snobby.');
+    buffer.writeln('- You can tease, hype, gush, disagree gently, or give a hot take when it feels natural.');
+    buffer.writeln('- Do not overperform. Not every reply should sound ultra-excited.');
+    buffer.writeln('- Match the user\'s mood: playful if they are playful, calm if they are calm, serious if they are serious.');
+    buffer.writeln();
+    buffer.writeln('CONVERSATION BEHAVIOR:');
+    buffer.writeln('- Never open with robotic filler like "As an AI", "I\'d be happy to help", or "Sure! Here are some recommendations."');
+    buffer.writeln('- Start naturally, like a friend already in the conversation.');
+    buffer.writeln('- If the user mentions a movie they loved or hated, react to that first in 1 short line before recommending anything.');
+    buffer.writeln('- If the user is vague, ask exactly ONE vivid follow-up question that helps narrow the vibe.');
+    buffer.writeln('- Do not ask a follow-up question if the user has already given enough constraints to recommend confidently.');
+    buffer.writeln('- Do not ask the same type of follow-up repeatedly. Vary your angle: mood, pacing, intensity, runtime, era, language comfort, rewatchability, darkness level, ending style, solo vs group watch, late-night vs daytime vibe.');
+    buffer.writeln('- Avoid sounding like an interview. This should feel like conversation, not data collection.');
+    buffer.writeln();
+    buffer.writeln('TASTE INTELLIGENCE:');
+    buffer.writeln('- Use the user taste profile as soft guidance, not as a script.');
+    buffer.writeln('- If their profile suggests hidden gems, avoid obvious mainstream picks unless the user asks for them.');
+    buffer.writeln('- Never recommend titles from the user\'s watched history.');
+    buffer.writeln('- Infer taste from wording. Example signals include: "mind-bending", "slow burn", "cozy", "massy", "dark", "fast-paced", "visually stunning", "emotionally wreck me", "easy watch", "underrated".');
+    buffer.writeln('- When recommending, explain the match in a way that connects directly to what the user just said.');
+    buffer.writeln('- Prefer fresh variety over repeating the same kind of recommendation every time.');
+    buffer.writeln();
+    buffer.writeln('RECOMMENDATION POLICY:');
+    buffer.writeln('- Give recommendations only when you have enough signal.');
+    buffer.writeln('- Normally give 1 to 3 titles max.');
+    buffer.writeln('- Lead with the strongest match first.');
+    buffer.writeln('- Avoid dumping lists with no framing.');
+    buffer.writeln('- Each recommendation should feel chosen, not generated.');
+    buffer.writeln('- If the user asks for "something like X", match tone, feeling, pacing, or theme — not just surface genre.');
+    buffer.writeln('- If the request is highly specific, be decisive.');
+    buffer.writeln('- If confidence is low, be honest and lighter in tone rather than pretending certainty.');
+    buffer.writeln();
+    buffer.writeln('HUMAN-LIKE RESPONSE STYLE:');
+    buffer.writeln('- Good response rhythm: quick reaction -> tiny opinion or vibe read -> decisive recommendation.');
+    buffer.writeln('- NEVER end your response with a generic follow-up question like "What kind of vibe are you looking for?" or "Are you in the mood for X or Y?".');
+    buffer.writeln('- DO NOT ask the user questions unless absolutely strictly necessary. Prefer making an educated guess based on their taste profile over asking for clarification.');
+    buffer.writeln('- Be highly opinionated. Act like a friend who already knows what they should watch.');
+    buffer.writeln('- Use contractions naturally.');
+    buffer.writeln('- Vary sentence length.');
+    buffer.writeln('- Occasionally use playful emphasis, but do not force slang.');
+    buffer.writeln('- Do not stuff every reply with emojis, exclamation marks, or hype words.');
+    buffer.writeln('- Do not repeat the same catchphrases.');
+    buffer.writeln();
+    buffer.writeln('JSON OUTPUT CONTRACT:');
+    buffer.writeln('- Only include a JSON block when giving specific recommendations.');
+    buffer.writeln('- Never include a JSON block when only chatting, reacting, or asking a follow-up question.');
+    buffer.writeln('- The JSON block must be the final thing in the reply.');
+    buffer.writeln('- Output must be valid JSON inside a ```json code block.');
+    buffer.writeln('- Return an array with 1 to 3 objects.');
+    buffer.writeln('- Each object must contain exactly these fields: title, year, reason.');
+    buffer.writeln('- "title" must be a string.');
+    buffer.writeln('- "year" must be a number if known, otherwise null.');
+    buffer.writeln('- "reason" must be one short sentence, specific to the user\'s current vibe/request.');
+    buffer.writeln('- Do not add extra keys unless explicitly asked.');
+    buffer.writeln();
+    buffer.writeln('VALID JSON EXAMPLE:');
     buffer.writeln('```json');
-    buffer.writeln('[{"title": "MOVIE TITLE", "year": 2023, "reason": "Why this specifically fits their vibe (one short sentence)"}]');
+    buffer.writeln('[{"title":"MOVIE TITLE","year":2023,"reason":"Fits because it has the exact emotional intensity and pacing you asked for."}]');
     buffer.writeln('```');
-    buffer.writeln('Include 1-3 movies max per recommendation block to avoid overwhelming them. Do NOT include JSON if you are just chatting or asking a cross-question.');
+    buffer.writeln();
+    buffer.writeln('SAFETY / QUALITY GUARDRAILS:');
+    buffer.writeln('- Never invent details about what the user has watched.');
+    buffer.writeln('- Never claim certainty when unsure.');
+    buffer.writeln('- Never explain your internal rules.');
+    buffer.writeln('- Never mention the taste profile explicitly unless it feels natural and useful.');
+    buffer.writeln('- Never output malformed JSON.');
+    buffer.writeln('- If torn between asking and recommending, prefer recommending only when the user already gave enough to make a good call.');
     buffer.writeln();
 
     if (profile != null && profile.watchedCount > 0) {
-      buffer.writeln('--- USER TASTE PROFILE ---');
+      buffer.writeln('USER TASTE PROFILE:');
       buffer.writeln(profile.toTasteString());
-      buffer.writeln('--------------------------');
     } else {
-      buffer.writeln('USER TASTE PROFILE: New user. Establish their taste by asking engaging questions!');
+      buffer.writeln('USER TASTE PROFILE: New user. Learn their taste gradually through natural conversation.');
     }
 
     buffer.writeln();
-    buffer.writeln('HARD RULES:');
-    buffer.writeln('- NEVER recommend movies from the user\'s watch history.');
-    buffer.writeln('- ALWAYS explain exactly *why* you are recommending something based on what they just told you.');
-    buffer.writeln('- DO NOT use generic AI filler like "As an AI..." or "I\'d be happy to help!"');
+    buffer.writeln('FINAL PRIORITY ORDER:');
+    buffer.writeln('1. Sound human.');
+    buffer.writeln('2. Be socially natural.');
+    buffer.writeln('3. Personalize intelligently.');
+    buffer.writeln('4. Recommend accurately.');
+    buffer.writeln('5. Keep JSON valid when recommendations are present.');
 
     return buffer.toString();
   }
@@ -212,16 +314,25 @@ class BotService {
   // ─────────────── RESPONSE PARSER ───────────────
 
   Future<BotResponse> _parseResponse(String rawContent) async {
-    // Find all ```json ... ``` blocks
-    final jsonRegex = RegExp(r'```json\s*([\s\S]*?)```', multiLine: true);
-    final matches = jsonRegex.allMatches(rawContent);
+    // 1. Try to find markdown blocks ```json ... ``` or ``` ... ```
+    final jsonRegex = RegExp(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```', multiLine: true);
+    var matches = jsonRegex.allMatches(rawContent).toList();
+
+    // 2. Fallback: Try to find a raw JSON array if markdown is missing
+    if (matches.isEmpty) {
+      final rawJsonRegex = RegExp(r'\[\s*\{\s*"title"[\s\S]*?\}\s*\]', multiLine: true);
+      matches = rawJsonRegex.allMatches(rawContent).toList();
+    }
 
     final List<MovieModel> movies = [];
     String textContent = rawContent;
 
     for (final match in matches) {
       try {
-        final jsonStr = match.group(1)?.trim() ?? '';
+        final jsonStr = match.groupCount >= 1 && match.group(1) != null 
+            ? match.group(1)!.trim() 
+            : match.group(0)!.trim();
+        
         final parsed = jsonDecode(jsonStr);
         if (parsed is List) {
           for (final item in parsed) {
@@ -237,7 +348,13 @@ class BotService {
               // If TMDB ID is missing, search TMDB to get the real ID so the card is clickable
               if (tmdbId == 0 && title != 'Unknown') {
                  try {
-                   final query = Uri.encodeComponent(title);
+                   // Clean title by removing years in parenthesis e.g. "The Dark Knight (2008)" -> "The Dark Knight"
+                   // Also strip leading numbers or bullets e.g. "1. The Matrix" or "- Inception"
+                   final cleanTitle = title
+                       .replaceAll(RegExp(r'^\d+\.\s*|^-\s*|^\*\s*'), '')
+                       .replaceAll(RegExp(r'\s*\(\d{4}\)\s*'), '')
+                       .trim();
+                   final query = Uri.encodeComponent(cleanTitle);
                    final url = 'https://api.themoviedb.org/3/search/multi?api_key=${AppSecrets.tmdbApiKey}&query=$query';
                    final tmdbRes = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
                    
@@ -245,25 +362,46 @@ class BotService {
                       final tmdbData = jsonDecode(tmdbRes.body);
                       final results = tmdbData['results'] as List;
                       if (results.isNotEmpty) {
-                         // Prefer matching year if possible, else take the first movie/tv result
-                         var bestMatch = results.firstWhere(
-                           (r) => (r['media_type'] == 'movie' || r['media_type'] == 'tv') && 
-                                  ((r['release_date'] ?? r['first_air_date'] ?? '').toString().startsWith(yearStr)),
-                           orElse: () => results.firstWhere(
-                             (r) => r['media_type'] == 'movie' || r['media_type'] == 'tv', 
-                             orElse: () => results.first
-                           )
-                         );
+                         // Filter out people or companies, only keep movies/tv
+                         final validResults = results.where((r) => r['media_type'] == 'movie' || r['media_type'] == 'tv').toList();
 
-                         tmdbId = bestMatch['id'] ?? 0;
+                         if (validResults.isNotEmpty) {
+                           // Prefer matching year if possible, else take the first valid result
+                           var bestMatch = validResults.firstWhere(
+                             (r) => ((r['release_date'] ?? r['first_air_date'] ?? '').toString().startsWith(yearStr)),
+                             orElse: () => validResults.first
+                           );
+
+
+                         final rawId = bestMatch['id'];
+                         if (rawId is int) {
+                           tmdbId = rawId;
+                         } else if (rawId is String) {
+                           tmdbId = int.tryParse(rawId) ?? 0;
+                         } else {
+                           tmdbId = 0;
+                         }
+
                          if (bestMatch['poster_path'] != null) {
                            posterPath = bestMatch['poster_path'];
                          }
-                         voteAverage = (bestMatch['vote_average'] ?? 0.0).toDouble();
+                         
+                         // Fix potential cast error if vote_average is returned as a String by some weird edge case
+                         final rawVote = bestMatch['vote_average'];
+                         if (rawVote is num) {
+                           voteAverage = rawVote.toDouble();
+                         } else if (rawVote is String) {
+                           voteAverage = double.tryParse(rawVote) ?? 0.0;
+                         }
+
                          releaseDate = bestMatch['release_date'] ?? bestMatch['first_air_date'] ?? releaseDate;
-                      }
+                          }
+                       }
+                   } else {
+                     debugPrint('TMDB Search Failed: Status ${tmdbRes.statusCode} Body: ${tmdbRes.body}');
                    }
-                 } catch (_) {
+                 } catch (e, stack) {
+                   debugPrint('TMDB Search Exception: $e\n$stack');
                    // Search failed, gracefully fallback to keeping tmdbId as 0
                  }
               }
@@ -286,6 +424,11 @@ class BotService {
         textContent = textContent.replaceAll(match.group(0)!, '').trim();
       } catch (_) {}
     }
+
+    // Aggressively clean up any remaining markdown backticks that might have been left behind
+    textContent = textContent.replaceAll(RegExp(r'```(?:json)?', caseSensitive: false), '')
+                             .replaceAll('```', '')
+                             .trim();
 
     return BotResponse(textContent: textContent, movies: movies);
   }

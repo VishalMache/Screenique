@@ -42,7 +42,8 @@ class TasteProfileService {
           .get();
 
       if (!doc.exists || doc.data() == null) {
-        return UserTasteProfile.empty(uid);
+        // If the profile doesn't exist yet, build it from scratch from the user's history
+        return await buildAndSaveProfile(uid);
       }
       return UserTasteProfile.fromJson(doc.data()!);
     } catch (e) {
@@ -369,6 +370,47 @@ class TasteProfileService {
           .set(data, SetOptions(merge: true));
     } catch (e) {
       debugPrint('TasteProfileService.saveOnboardingPreferences error: $e');
+    }
+  }
+
+  /// Call when user gives 👍 feedback. Reinforces genre scores.
+  Future<void> recordPositiveFeedback(String uid, MovieModel movie) async {
+    try {
+      final Map<String, dynamic> updates = {
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+      for (final genreId in movie.genreIds.take(2)) {
+        updates['genreScores.$genreId.score'] = FieldValue.increment(0.2);
+      }
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set(updates, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('TasteProfileService.recordPositiveFeedback error: $e');
+    }
+  }
+
+  /// Call when user gives 👎 feedback. Adds genres to avoidance vectors.
+  Future<void> recordNegativeFeedback(String uid, MovieModel movie) async {
+    try {
+      final Map<String, dynamic> updates = {
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'avoidGenres': FieldValue.arrayUnion(movie.genreIds.take(2).toList()),
+      };
+      for (final genreId in movie.genreIds.take(2)) {
+        updates['genreScores.$genreId.score'] = FieldValue.increment(-0.3);
+      }
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('taste_profile')
+          .doc('main')
+          .set(updates, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('TasteProfileService.recordNegativeFeedback error: $e');
     }
   }
 

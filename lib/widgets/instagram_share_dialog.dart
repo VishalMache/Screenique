@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -124,7 +125,7 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
       } else if (i == fullStars && hasHalf) {
         stars.add(Icon(Icons.star_half, color: color, size: size));
       } else {
-        stars.add(Icon(Icons.star_border, color: color.withOpacity(0.2), size: size));
+        stars.add(Icon(Icons.star_border, color: Colors.white.withOpacity(0.2), size: size));
       }
     }
     return Row(
@@ -135,12 +136,9 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final type = widget.movie.isTvShow ? "SERIES" : "MOVIE";
-    final genre = widget.movie.genreNames.split(',').first.trim().toUpperCase();
     final year = widget.movie.releaseDate != 'N/A' && widget.movie.releaseDate.length >= 4
         ? widget.movie.releaseDate.substring(0, 4)
         : 'N/A';
-    final metadata = "$type • $genre • $year";
 
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.displayName ?? (user?.email != null ? user!.email!.split('@')[0] : 'CINEPHILE');
@@ -195,151 +193,195 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
                         controller: _screenshotController,
                         child: Stack(
                           children: [
-                            // Background Cream (Matches app's core UI!)
-                            Container(
-                              color: const Color(0xFFF4F4EC),
-                            ),
-
-                            // Film Roll Graphics Background
+                            // 1. Full Screen Blurred Poster Background (Acts as the frosted container)
                             Positioned.fill(
-                              child: CustomPaint(
-                                painter: FilmRollPainter(),
+                              child: Image.network(
+                                widget.movie.posterPath,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111)),
                               ),
                             ),
-
-                            // Main Story Layout Elements
+                            // Dark heavy overlay
                             Positioned.fill(
-                              child: Padding(
-                          padding: const EdgeInsets.only(left: 24, right: 24, top: 10, bottom: 16), // Moved logo upside
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Logo asset instead of text branding
-                              Center(
-                                child: Image.asset(
-                                  'assets/logo12.png',
-                                  width: 150, // Decreased logo size a bit
-                                  fit: BoxFit.contain,
-                                ),
+                              child: Container(
+                                color: Colors.black.withOpacity(0.85),
                               ),
-                              const SizedBox(height: 4), // Move content below it upside
-
-                              // Movie Poster (Dynamically scales down for long paragraphs)
-                              Flexible(
-                                flex: 3,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(maxHeight: 225),
-                                  child: Center(
-                                    child: AspectRatio(
-                                      aspectRatio: 2 / 3,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(color: const Color(0xFF111111), width: 2),
-                                        ),
-                                        child: Image.network(
-                                          widget.movie.posterPath,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (c, e, s) => Container(
-                                            color: const Color(0xFF111111),
-                                            child: const Icon(Icons.movie_outlined, color: Color(0xFFF4F4EC), size: 40),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                            ),
+                            // Blur filter for the entire screen
+                            Positioned.fill(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                                child: Container(color: Colors.transparent),
                               ),
-                              const SizedBox(height: 8),
+                            ),
 
-                              // Movie Title (Clean and Simple)
-                              Center(
-                                child: Text(
-                                  widget.movie.title.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Color(0xFF111111),
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 16,
-                                    fontFamily: 'Impact',
-                                    letterSpacing: 1.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-
-                              // Metadata (Type • Genre • Year) in low opacity
-                              Center(
-                                child: Text(
-                                  metadata,
-                                  style: TextStyle(
-                                    color: const Color(0xFF111111).withOpacity(0.5),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Rating Row (Large size, NO digits, only stars)
-                              Center(
-                                child: _buildStarRating(widget.rating, const Color(0xFF111111), size: 24),
-                              ),
-
-                              // User Review Section (Only visible if not empty)
-                              if (widget.movie.personalNote != null && widget.movie.personalNote!.trim().isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Flexible(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
+                            // 2. Full Screen Content Layout
+                            Positioned.fill(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Top Spacing (Safe Area equivalent)
+                                  const SizedBox(height: 50),
+                                  
+                                  // Top Section: Poster & Details
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Flexible(
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.topCenter,
-                                            child: SizedBox(
-                                              width: constraints.maxWidth - 48, // Total padding is 24 on each side
-                                              child: Text(
-                                                '"${widget.movie.personalNote}"',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF111111),
-                                                  fontSize: 14.0,
-                                                  fontStyle: FontStyle.italic,
-                                                  height: 1.4,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                textAlign: TextAlign.center,
+                                        // Top Left: Poster
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.3),
+                                                blurRadius: 15,
+                                                offset: const Offset(0, 10),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.network(
+                                              widget.movie.posterPath,
+                                              width: 100,
+                                              height: 150,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, s) => Container(
+                                                width: 100,
+                                                height: 150,
+                                                color: const Color(0xFF111111),
+                                                child: const Icon(Icons.movie, color: Colors.white38),
                                               ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          "— ${userName.toUpperCase()}",
-                                          style: TextStyle(
-                                            color: const Color(0xFF111111).withOpacity(0.6),
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 1.5,
+                                        const SizedBox(width: 20),
+                                        
+                                        // Right side: Username, Title, Rating, Date
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              // Username
+                                              Text(
+                                                userName.toUpperCase(),
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.7),
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 2,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              // Tiny red accent line below username
+                                              Container(
+                                                width: 20,
+                                                height: 1.5,
+                                                color: const Color(0xFFE53935),
+                                                margin: const EdgeInsets.only(top: 6, bottom: 12),
+                                              ),
+                                              
+                                              // Title (Cleaner, smaller font to prevent overflow)
+                                              Text(
+                                                widget.movie.title.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 20,
+                                                  letterSpacing: 0.5,
+                                                  height: 1.2,
+                                                ),
+                                                maxLines: 4,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              
+                                              // Year
+                                              Text(
+                                                year,
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.5),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: 3,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              
+                                              // Star Rating
+                                              _buildStarRating(widget.rating, const Color(0xFFE53935), size: 16),
+                                            ],
                                           ),
-                                          textAlign: TextAlign.center,
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                              ],
-                              const Spacer(),
-                            ],
-                          ),
-                        ),
-                          ), // Closes Positioned.fill
-                        ],
+                                  
+                                  const SizedBox(height: 32),
+                                  
+                                  // Review Body
+                                  if (widget.movie.personalNote != null && widget.movie.personalNote!.trim().isNotEmpty) ...[
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                                        child: Text(
+                                          widget.movie.personalNote!,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.85),
+                                            fontSize: 14,
+                                            height: 1.5,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          overflow: TextOverflow.fade,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    const Spacer(), // Push footer down if no review
+                                  ],
+                                  
+                                  // Footer Logo Section
+                                  Container(
+                                    color: Colors.black.withOpacity(0.4),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(width: 16, height: 1, color: const Color(0xFFE53935).withOpacity(0.5)),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "SHARING FROM",
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(0.4),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 3,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(width: 16, height: 1, color: const Color(0xFFE53935).withOpacity(0.5)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Image.asset(
+                                          'assets/logo12.png',
+                                          width: 120,
+                                          fit: BoxFit.contain,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                       ),
                     );
                 },
@@ -416,51 +458,4 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
       ),
     );
   }
-}
-
-class FilmRollPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF111111).withOpacity(0.06)
-      ..style = PaintingStyle.fill;
-
-    double holeWidth = 14.0;
-    double holeHeight = 22.0;
-    double spacing = 12.0;
-    double paddingX = 12.0;
-
-    // Draw sprocket holes
-    for (double y = 15; y < size.height; y += holeHeight + spacing) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(paddingX, y, holeWidth, holeHeight),
-          const Radius.circular(4),
-        ),
-        paint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(size.width - paddingX - holeWidth, y, holeWidth, holeHeight),
-          const Radius.circular(4),
-        ),
-        paint,
-      );
-    }
-    
-    // Draw subtle vertical separator lines
-    final linePaint = Paint()
-      ..color = const Color(0xFF111111).withOpacity(0.04)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-      
-    double leftLineX = paddingX * 2 + holeWidth;
-    double rightLineX = size.width - (paddingX * 2 + holeWidth);
-    
-    canvas.drawLine(Offset(leftLineX, 0), Offset(leftLineX, size.height), linePaint);
-    canvas.drawLine(Offset(rightLineX, 0), Offset(rightLineX, size.height), linePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

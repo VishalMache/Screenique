@@ -3,12 +3,14 @@ import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie_model.dart';
 import '../models/taste_profile_model.dart';
 import '../core/secrets.dart';
+import 'analytics_service.dart';
 import 'taste_profile_service.dart';
 
 class MovieService {
@@ -30,6 +32,36 @@ class MovieService {
     await prefs.remove('cached_movie_recommendations');
     await prefs.remove('cached_series_recommendations');
     debugPrint("MovieService: All Caches Purged.");
+  }
+
+  /// Fetch diversity ratio from Firebase Remote Config.
+  /// Defaults: confident=0.65, serendipity=0.20, community=0.15
+  static Future<Map<String, double>> _getDiversityRatio() async {
+    try {
+      final rc = FirebaseRemoteConfig.instance;
+      await rc.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 5),
+        minimumFetchInterval: const Duration(hours: 1),
+      ));
+      await rc.fetchAndActivate();
+      final confidentRaw = rc.getDouble('diversity_confident');
+      final serendipityRaw = rc.getDouble('diversity_serendipity');
+      return {
+        'confident': confidentRaw > 0 ? confidentRaw : 0.65,
+        'serendipity': serendipityRaw > 0 ? serendipityRaw : 0.20,
+      };
+    } catch (_) {
+      return {'confident': 0.65, 'serendipity': 0.20};
+    }
+  }
+
+  /// Log a recommendation click event.
+  static Future<void> logRecClick(MovieModel movie, String section) async {
+    await AnalyticsService.logRecClicked(
+      movieTitle: movie.title,
+      carouselSection: section,
+      matchScore: movie.voteAverage,
+    );
   }
 
   // --- SMART MEDIA DATA ---
@@ -56,6 +88,23 @@ class MovieService {
       // 1. Load persisted taste profile
       final profile = await TasteProfileService().getProfile(user.uid);
       final Set<int> watchedIds = await _getWatchedIds(user.uid);
+
+      // ─── COLD-START FALLBACK (< 5 watched movies) ───
+      if (profile.watchedCount < 5) {
+        final coldGenres = profile.coldStartGenres.isNotEmpty
+            ? profile.coldStartGenres
+            : (isTv ? [18, 35] : [28, 878]); // drama/comedy for TV, action/scifi for movies
+        final trendingMovies = await getMediaByGenre(coldGenres.first, isTv: isTv);
+        final result = trendingMovies
+            .where((m) => !watchedIds.contains(m.id))
+            .take(15)
+            .map((m) => MovieModel.fromJson({
+                  ...m.toJson(),
+                  'reason': 'Trending pick to kick off your taste profile 🎬',
+                }))
+            .toList();
+        return {'title': isTv ? 'SERIES TO START WITH' : 'FILMS TO START WITH', 'movies': result};
+      }
 
       // 2. Determine top genre + director for candidate fetching
       final List<int> topGenres = profile.topGenreIds(n: 3);
@@ -121,10 +170,11 @@ class MovieService {
       }).toList()
         ..sort((a, b) => b.score.compareTo(a.score));
 
-      // 5. DIVERSITY MIXING: 65% confidence + 20% serendipity + 15% community
+      // 5. DIVERSITY MIXING via Remote Config ratios
       const int targetTotal = 15;
-      final int confidentCount = (targetTotal * 0.65).ceil();
-      final int serendipityCount = (targetTotal * 0.20).ceil();
+      final ratios = await _getDiversityRatio();
+      final int confidentCount = (targetTotal * (ratios['confident'] ?? 0.65)).ceil();
+      final int serendipityCount = (targetTotal * (ratios['serendipity'] ?? 0.20)).ceil();
 
       final List<MovieModel> result = [];
       final Set<int> addedIds = {};

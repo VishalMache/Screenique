@@ -2,8 +2,11 @@
 /// Dark-theme chat UI with embedded movie cards and "why" explanations.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../services/analytics_service.dart';
 import '../../../services/bot_service.dart';
+import '../../../services/voice_service.dart';
 import '../../../models/movie_model.dart';
+import '../../../services/onboarding_engine.dart';
 import '../../movie_details_screen.dart';
 
 class BotChatScreen extends StatefulWidget {
@@ -16,11 +19,16 @@ class BotChatScreen extends StatefulWidget {
 class _BotChatScreenState extends State<BotChatScreen>
     with TickerProviderStateMixin {
   final BotService _botService = BotService();
+  final VoiceService _voiceService = VoiceService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_UiMessage> _messages = [];
   bool _isLoading = false;
   bool _isInitializing = true;
+  bool _isRecording = false;
+  bool _isTranscribing = false;
+  double _dragOffset = 0.0;
+  bool _showMic = true;
   late AnimationController _pulseController;
 
   @override
@@ -29,6 +37,15 @@ class _BotChatScreenState extends State<BotChatScreen>
     _pulseController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1000))
       ..repeat(reverse: true);
+    
+    _textController.addListener(() {
+      final shouldShowMic = _textController.text.trim().isEmpty;
+      if (shouldShowMic != _showMic) {
+        setState(() => _showMic = shouldShowMic);
+      }
+    });
+
+    AnalyticsService.logBotOpened(); // Phase 4: Track bot opens
     _initBot();
   }
 
@@ -37,30 +54,35 @@ class _BotChatScreenState extends State<BotChatScreen>
     if (!mounted) return;
     setState(() => _isInitializing = false);
 
+    // Fetch dynamic welcome message and chips from OnboardingEngine
+    final profile = _botService.cachedProfile;
+    final welcomeMsg = OnboardingEngine.getWelcomeMessage(profile);
+    final chips = OnboardingEngine.getWelcomeChips(profile);
+    
+    // Log the welcome shown analytics event
+    AnalyticsService.logBotWelcomeShown(
+      userState: profile == null || profile.watchedCount == 0 ? 'new' : (profile.watchedCount <= 10 ? 'medium' : 'strong'),
+      welcomeText: welcomeMsg,
+    );
+
     // Welcome message
     _addBotMessage(
-      'Hey there! I\'m Screenu, your personal cinematic sidekick. Whether you\'re hunting for the perfect movie recommendation or just have questions about your favorite series, I\'ve got you covered. What are we watching today? 🍿',
+      welcomeMsg,
       [],
-      suggestions: [
-        'Recommend me a hidden gem 💎',
-        'What\'s similar to DUNE? 🏜️',
-        'Surprise me 🎲',
-        'Best underrated thrillers? 🔪',
-        'Something mind-bending 🌀',
-        'Top arthouse picks 🎭',
-      ],
+      suggestions: chips,
     );
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _voiceService.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _addBotMessage(String text, List<MovieModel> movies, {List<String> suggestions = const []}) {
+  void _addBotMessage(String text, List<MovieModel> movies, {List<BotChip> suggestions = const []}) {
     setState(() {
       _messages.add(_UiMessage(
         role: 'assistant',
@@ -86,11 +108,53 @@ class _BotChatScreenState extends State<BotChatScreen>
     _scrollToBottom();
   }
 
+  Future<void> _startRecording() async {
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _isRecording = true;
+      _dragOffset = 0.0;
+    });
+    try {
+      await _voiceService.startRecording();
+    } catch (e) {
+      setState(() => _isRecording = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission required for voice notes.', style: TextStyle(color: Colors.white, fontSize: 12)), backgroundColor: Color(0xFF111111)),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecording({bool cancel = false}) async {
+    if (!_isRecording) return;
+    HapticFeedback.mediumImpact();
+    setState(() => _isRecording = false);
+    
+    if (cancel) {
+      await _voiceService.cancelRecording();
+      return;
+    }
+
+    final path = await _voiceService.stopRecording();
+    if (path != null) {
+      setState(() => _isTranscribing = true);
+      final text = await _botService.transcribeAudio(path);
+      setState(() => _isTranscribing = false);
+      if (text != null && text.trim().isNotEmpty) {
+        final currentText = _textController.text;
+        _textController.text = currentText.isNotEmpty ? '$currentText ${text.trim()} ' : '${text.trim()} ';
+        _textController.selection = TextSelection.fromPosition(TextPosition(offset: _textController.text.length));
+      }
+    }
+  }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty || _isLoading) return;
     _textController.clear();
     HapticFeedback.lightImpact();
 
+    AnalyticsService.logBotMessageSent(querySnippet: text.trim()); // Phase 4
     _addUserMessage(text.trim());
     setState(() => _isLoading = true);
 
@@ -301,26 +365,36 @@ class _BotChatScreenState extends State<BotChatScreen>
           ),
           
           // Render Inline Suggestions if any
-          if (message.suggestions.isNotEmpty && _messages.length <= 1) ...[
-            const SizedBox(height: 12),
-            Container(
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.85),
+          if (message.suggestions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
               child: Wrap(
-                spacing: 8,
+                spacing: 6,
                 runSpacing: 8,
-                children: message.suggestions.map((suggestion) {
+                children: message.suggestions.map((chip) {
                   return GestureDetector(
-                    onTap: () => _sendMessage(suggestion),
+                    onTap: () {
+                      // Phase 5 Analytics: log chip tap
+                      final profile = _botService.cachedProfile;
+                      final userState = profile == null || profile.watchedCount == 0 ? 'new' : (profile.watchedCount <= 10 ? 'medium' : 'strong');
+                      AnalyticsService.logBotChipTapped(
+                        chipText: chip.text,
+                        category: chip.category,
+                        userState: userState,
+                      );
+                      _sendMessage(chip.text);
+                    },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
-                        border: Border.all(color: const Color(0xFFD32F2F).withValues(alpha: 0.5)),
-                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: const Color(0xFFD32F2F).withValues(alpha: 0.5)),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        suggestion,
+                        chip.text,
                         style: const TextStyle(
                           color: Color(0xFFD32F2F),
                           fontSize: 11,
@@ -333,7 +407,6 @@ class _BotChatScreenState extends State<BotChatScreen>
                 }).toList(),
               ),
             ),
-          ],
           
           // Embedded movie cards
           if (message.movies.isNotEmpty) ...[
@@ -358,6 +431,7 @@ class _BotChatScreenState extends State<BotChatScreen>
     return GestureDetector(
       onTap: () {
         if (movie.id != 0) {
+          AnalyticsService.logBotRecTapped(movieTitle: movie.title); // Phase 4
           Navigator.push(context,
               MaterialPageRoute(builder: (_) => MovieDetailsScreen(movie: movie)));
         }
@@ -522,43 +596,129 @@ class _BotChatScreenState extends State<BotChatScreen>
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                border: Border.all(color: const Color(0xFF2A2A2A)),
-              ),
-              child: TextField(
-                controller: _textController,
-                style: const TextStyle(
-                    color: Color(0xFFF4F4EC), fontSize: 13, height: 1.4),
-                cursorColor: const Color(0xFFD32F2F),
-                decoration: const InputDecoration(
-                  hintText: 'Ask CineBot anything...',
-                  hintStyle: TextStyle(
-                      color: Color(0xFF444444),
-                      fontSize: 12,
-                      letterSpacing: 0.5),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                ),
-                textInputAction: TextInputAction.send,
-                onSubmitted: _sendMessage,
-                maxLines: null,
-              ),
-            ),
+            child: _isRecording
+                ? Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF221111),
+                      border: Border.all(color: const Color(0xFFD32F2F).withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, child) => Icon(
+                            Icons.mic_rounded,
+                            color: const Color(0xFFD32F2F).withValues(
+                                alpha: 0.5 + (_pulseController.value * 0.5)),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Listening... Slide left to cancel',
+                          style: TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1A),
+                      border: Border.all(color: const Color(0xFF2A2A2A)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _textController,
+                            style: const TextStyle(
+                                color: Color(0xFFF4F4EC), fontSize: 13, height: 1.4),
+                            cursorColor: const Color(0xFFD32F2F),
+                            decoration: InputDecoration(
+                              hintText: _isTranscribing ? 'Transcribing...' : 'Ask CineBot anything...',
+                              hintStyle: const TextStyle(
+                                  color: Color(0xFF444444),
+                                  fontSize: 12,
+                                  letterSpacing: 0.5),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: _sendMessage,
+                            maxLines: null,
+                            enabled: !_isTranscribing,
+                          ),
+                        ),
+                        if (_isTranscribing)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD32F2F)),
+                              ),
+                            ),
+                          )
+                      ],
+                    ),
+                  ),
           ),
           const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () => _sendMessage(_textController.text),
-            child: Container(
-              height: 48,
-              width: 48,
-              color: const Color(0xFFD32F2F),
-              child: const Icon(Icons.send_rounded,
-                  color: Color(0xFFF4F4EC), size: 20),
+          if (_showMic)
+            GestureDetector(
+              onLongPressStart: (_) => _startRecording(),
+              onLongPressEnd: (_) => _stopRecording(cancel: _dragOffset < -50),
+              onLongPressMoveUpdate: (details) {
+                setState(() {
+                  _dragOffset = details.offsetFromOrigin.dx;
+                });
+                if (_dragOffset < -50 && _isRecording) {
+                  _stopRecording(cancel: true);
+                }
+              },
+              child: Transform.translate(
+                offset: Offset(_dragOffset.clamp(-50.0, 0.0), 0),
+                child: Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: _isRecording ? const Color(0xFFD32F2F) : const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(
+                    Icons.mic_rounded,
+                    color: _isRecording ? const Color(0xFFF4F4EC) : const Color(0xFF888888),
+                    size: 20,
+                  ),
+                ),
+              ),
+            )
+          else
+            GestureDetector(
+              onTap: () => _sendMessage(_textController.text),
+              child: Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD32F2F),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(Icons.send_rounded,
+                    color: Color(0xFFF4F4EC), size: 20),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -570,7 +730,7 @@ class _UiMessage {
   final String role;
   final String text;
   final List<MovieModel> movies;
-  final List<String> suggestions;
+  final List<BotChip> suggestions;
   final DateTime timestamp;
 
   const _UiMessage({

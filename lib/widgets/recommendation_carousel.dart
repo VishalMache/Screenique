@@ -1,8 +1,11 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../models/movie_model.dart';
 import '../movie_details_screen.dart';
+import '../../../services/analytics_service.dart';
 import '../../../services/movie_service.dart';
+import '../../../services/taste_profile_service.dart';
 import '../../../services/watchlist_service.dart';
 import '../data/dialogues_data.dart';
 
@@ -71,12 +74,14 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
                   const SizedBox(height: 25),
                   _buildActionButton(context, icon: Icons.bookmark_add_outlined, label: "ADD TO WATCHLIST", onTap: () {
                     _watchlistService.toggleMovieStatus(movie, 'watchlist');
+                    AnalyticsService.logRecAddToList(movieTitle: movie.title, listType: 'watchlist');
                     Navigator.pop(context);
                     _showToast(context, "ADDED TO WATCHLIST");
                   }),
                   const Divider(color: Color(0xFF111111), height: 1),
                   _buildActionButton(context, icon: Icons.check_circle_outline, label: "MARK AS WATCHED", onTap: () async {
                     await _watchlistService.toggleMovieStatus(movie, 'watched');
+                    AnalyticsService.logRecAddToList(movieTitle: movie.title, listType: 'watched');
                     Navigator.pop(context);
                     _showToast(context, "ADDED TO WATCHED MOVIES");
                   }),
@@ -86,6 +91,7 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
                       color: const Color(0xFF454545),
                       onTap: () async {
                         await _movieService.permanentlyDismissMovie(movie.id);
+                        AnalyticsService.logRecDismissed(movieTitle: movie.title);
                         setState(() => _dismissedMovieIds.add(movie.id));
                         Navigator.pop(context);
                         _showToast(context, "DISMISSED PERMANENTLY");
@@ -170,13 +176,6 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
     );
   }
 
-  String _formatVoteCount(double rating) {
-    final count = (rating * 133).round();
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return count.toString();
-  }
 
   Widget _buildEyeCatchyCard(MovieModel movie, int index) {
     double relativePosition = index - _currentPage;
@@ -212,6 +211,11 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
         onLongPress: () => _showQuickActions(context, movie),
         onTap: () {
           if (relativePosition.abs() < 0.1) {
+            // Fire analytics
+            AnalyticsService.logRecClicked(
+              movieTitle: movie.title,
+              carouselSection: widget.data!['title']?.toString() ?? 'Unknown',
+            );
             Navigator.push(context, MaterialPageRoute(builder: (context) => MovieDetailsScreen(movie: movie)));
           } else {
             _pageController.animateToPage(index, duration: const Duration(milliseconds: 600), curve: Curves.easeOutCubic);
@@ -351,11 +355,47 @@ class _RecommendationCarouselState extends State<RecommendationCarousel> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        // Thumbs feedback
                         Row(
                           children: [
-                            const Icon(Icons.favorite_border_rounded, color: Color(0xFF111111), size: 14),
-                            const SizedBox(width: 4),
-                            Text(_formatVoteCount(movie.voteAverage), style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.w900)),
+                            GestureDetector(
+                              onTap: () async {
+                                final uid = FirebaseAuth.instance.currentUser?.uid;
+                                if (uid == null) return;
+                                await AnalyticsService.logRecFeedback(movieTitle: movie.title, feedback: 'up');
+                                TasteProfileService().recordPositiveFeedback(uid, movie);
+                                if (context.mounted) _showToast(context, "THANKS FOR THE FEEDBACK!");
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                color: const Color(0xFFEEEEE6),
+                                child: const Row(children: [
+                                  Icon(Icons.thumb_up_rounded, size: 11, color: Color(0xFF2E7D32)),
+                                  SizedBox(width: 3),
+                                  Text('GOOD', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Color(0xFF2E7D32), letterSpacing: 1)),
+                                ]),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final uid = FirebaseAuth.instance.currentUser?.uid;
+                                if (uid == null) return;
+                                await AnalyticsService.logRecFeedback(movieTitle: movie.title, feedback: 'down');
+                                TasteProfileService().recordNegativeFeedback(uid, movie);
+                                setState(() => _dismissedMovieIds.add(movie.id));
+                                if (context.mounted) _showToast(context, "GOT IT, WE'LL SKIP THESE");
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                color: const Color(0xFFEEEEE6),
+                                child: const Row(children: [
+                                  Icon(Icons.thumb_down_rounded, size: 11, color: Color(0xFFC62828)),
+                                  SizedBox(width: 3),
+                                  Text('NOT MY VIBE', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Color(0xFFC62828), letterSpacing: 1)),
+                                ]),
+                              ),
+                            ),
                           ],
                         ),
                         const Icon(Icons.bookmark_border_rounded, color: Color(0xFF111111), size: 16),
