@@ -410,12 +410,26 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                               builder: (_) => TrailerDialog(videoUrl: _trailerUrl!),
                             );
                           },
-                          child: Row(
-                            children: [
-                              const Icon(Icons.play_circle_fill, color: Color(0xFFD32F2F), size: 24),
-                              const SizedBox(width: 8),
-                              const Text("WATCH TRAILER", style: TextStyle(color: Color(0xFFD32F2F), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                            ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF111111),
+                              border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0xFFD32F2F),
+                                  offset: Offset(4, 4),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.play_arrow_rounded, color: Color(0xFFF4F4EC), size: 20),
+                                const SizedBox(width: 8),
+                                const Text("WATCH TRAILER", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2, fontFamily: 'Impact')),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
