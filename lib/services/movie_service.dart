@@ -429,6 +429,22 @@ class MovieService {
     return {};
   }
 
+  Future<List<MovieModel>> getPersonCombinedCredits(int personId) async {
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/person/$personId/combined_credits?api_key=$_apiKey'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List cast = json.decode(response.body)['cast'] ?? [];
+        // Sort by popularity to show their best/most known work first
+        cast.sort((a, b) => (b['popularity'] ?? 0.0).compareTo(a['popularity'] ?? 0.0));
+        return cast.map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': m['media_type'] ?? 'movie'})).toList();
+      }
+    } catch (e) {
+      debugPrint("Error in getPersonCombinedCredits: $e");
+    }
+    return [];
+  }
+
   Future<List<MovieModel>> getDirectedMovies(int personId) async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/person/$personId/movie_credits?api_key=$_apiKey'))
@@ -500,6 +516,27 @@ class MovieService {
       debugPrint("Error in getMediaCast: $e");
     }
     return [];
+  }
+
+  Future<String?> getTrailerUrl(int id, {required bool isTv}) async {
+    final type = isTv ? 'tv' : 'movie';
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/$type/$id/videos?api_key=$_apiKey'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body)['results'] ?? [];
+        final trailer = results.firstWhere(
+          (v) => v['site'] == 'YouTube' && v['type'] == 'Trailer',
+          orElse: () => null,
+        );
+        if (trailer != null) {
+          return 'https://www.youtube.com/watch?v=${trailer['key']}';
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in getTrailerUrl: $e");
+    }
+    return null;
   }
 
   Future<List<MovieModel>> getSimilarMedia(int id, {required bool isTv}) async {

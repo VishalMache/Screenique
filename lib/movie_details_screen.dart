@@ -2,8 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../models/movie_model.dart';
 import '../../services/movie_service.dart';
+import 'person_details_screen.dart';
 import '../../services/watchlist_service.dart';
 
 class MovieDetailsScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   
   Map<String, dynamic>? _fullDetails;
   String _directorName = "UNKNOWN"; 
+  String? _trailerUrl;
   bool _isSpotlight = false;
   bool _isWatched = false;
   bool _isInWatchlist = false; 
@@ -45,11 +48,13 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
       final results = await Future.wait([
         _movieService.getMediaDetails(_movie.id, isTv: _movie.isTvShow),
         _movieService.getMediaCast(_movie.id, isTv: _movie.isTvShow),
+        _movieService.getTrailerUrl(_movie.id, isTv: _movie.isTvShow),
         _checkInitialStatusFuture(),
       ]);
 
       final details = results[0] as Map<String, dynamic>?;
       final castData = results[1] as List<Map<String, dynamic>>;
+      final trailer = results[2] as String?;
 
       String foundDirector = "UNKNOWN";
       if (details != null && details['credits'] != null) {
@@ -66,6 +71,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           _fullDetails = details;
           _directorName = foundDirector;
           _cast = castData;
+          _trailerUrl = trailer;
           _isLoading = false;
         });
       }
@@ -391,6 +397,25 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                       const SizedBox(height: 12),
                       _buildMetaData(accentColor),
                       const SizedBox(height: 20),
+                      
+                      if (_trailerUrl != null) ...[
+                        GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => TrailerDialog(videoUrl: _trailerUrl!),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.play_circle_fill, color: Color(0xFFD32F2F), size: 24),
+                              const SizedBox(width: 8),
+                              const Text("WATCH TRAILER", style: TextStyle(color: Color(0xFFD32F2F), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                       
                       // --- GENRES WRAP ---
                       if (_fullDetails?['genres'] != null) ...[
@@ -734,21 +759,34 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 20),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 30, 
-                      backgroundColor: const Color(0xFFF4F4EC), 
-                      backgroundImage: _cast[index]['profile_path'] != null 
-                          ? NetworkImage('https://image.tmdb.org/t/p/w200${_cast[index]['profile_path']}') 
-                          : null,
-                      child: _cast[index]['profile_path'] == null 
-                          ? const Icon(Icons.person, color: Color(0xFF111111))
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_cast[index]['name'].toString().toUpperCase().split(' ').first, style: const TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold)),
-                  ],
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PersonDetailsScreen(
+                          personId: _cast[index]['id'],
+                          name: _cast[index]['name'] ?? 'UNKNOWN',
+                        ),
+                      ),
+                    );
+                  },
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 30, 
+                        backgroundColor: const Color(0xFFF4F4EC), 
+                        backgroundImage: _cast[index]['profile_path'] != null 
+                            ? NetworkImage('https://image.tmdb.org/t/p/w200${_cast[index]['profile_path']}') 
+                            : null,
+                        child: _cast[index]['profile_path'] == null 
+                            ? const Icon(Icons.person, color: Color(0xFF111111))
+                            : null,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(_cast[index]['name'].toString().toUpperCase().split(' ').first, style: const TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               );
             },
@@ -826,6 +864,78 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
         ),
         child: Icon(icon, color: isActive ? const Color(0xFFF4F4EC) : const Color(0xFF111111)),
+      ),
+    );
+  }
+}
+
+class TrailerDialog extends StatefulWidget {
+  final String videoUrl;
+  const TrailerDialog({super.key, required this.videoUrl});
+
+  @override
+  State<TrailerDialog> createState() => _TrailerDialogState();
+}
+
+class _TrailerDialogState extends State<TrailerDialog> {
+  late YoutubePlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final videoId = Uri.parse(widget.videoUrl).queryParameters['v'] ?? '';
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: videoId,
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        mute: false,
+        showFullscreenButton: true,
+        loop: false,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("OFFICIAL TRAILER", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Icons.close, color: Color(0xFFF4F4EC), size: 20),
+                  ),
+                ],
+              ),
+            ),
+            YoutubePlayer(
+              controller: _controller,
+              backgroundColor: const Color(0xFF111111),
+            ),
+          ],
+        ),
       ),
     );
   }

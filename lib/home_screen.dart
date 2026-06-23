@@ -127,9 +127,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => OnboardingScreen(onComplete: () => Navigator.pop(context)),
+            builder: (ctx) => OnboardingScreen(onComplete: () => Navigator.pop(ctx)),
           ),
         );
+        if (mounted) {
+          _fetchInitialData(force: true);
+        }
       }
     } catch (_) {}
   }

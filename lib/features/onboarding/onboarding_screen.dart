@@ -67,12 +67,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     setState(() => _isSaving = true);
     HapticFeedback.heavyImpact();
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      await TasteProfileService()
-          .saveOnboardingPreferences(uid, _selectedGenres.toList());
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await TasteProfileService()
+            .saveOnboardingPreferences(uid, _selectedGenres.toList());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        widget.onComplete();
+      }
     }
-    widget.onComplete();
   }
 
   @override
