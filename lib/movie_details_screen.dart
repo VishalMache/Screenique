@@ -26,6 +26,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   Map<String, dynamic>? _fullDetails;
   String _directorName = "UNKNOWN"; 
   String? _trailerUrl;
+  List<Map<String, dynamic>> _watchProviders = [];
   bool _isSpotlight = false;
   bool _isWatched = false;
   bool _isInWatchlist = false; 
@@ -49,12 +50,14 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         _movieService.getMediaDetails(_movie.id, isTv: _movie.isTvShow),
         _movieService.getMediaCast(_movie.id, isTv: _movie.isTvShow),
         _movieService.getTrailerUrl(_movie.id, isTv: _movie.isTvShow),
+        _movieService.getWatchProviders(_movie.id, isTv: _movie.isTvShow),
         _checkInitialStatusFuture(),
       ]);
 
       final details = results[0] as Map<String, dynamic>?;
       final castData = results[1] as List<Map<String, dynamic>>;
       final trailer = results[2] as String?;
+      final providers = results[3] as List<Map<String, dynamic>>;
 
       String foundDirector = "UNKNOWN";
       if (details != null && details['credits'] != null) {
@@ -72,6 +75,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           _directorName = foundDirector;
           _cast = castData;
           _trailerUrl = trailer;
+          _watchProviders = providers;
           _isLoading = false;
         });
       }
@@ -497,6 +501,11 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           ),
                         ),
                       ],
+
+                      const SizedBox(height: 32),
+                      const Divider(color: Color(0xFF111111), thickness: 2),
+                      const SizedBox(height: 32),
+                      _buildWatchProvidersSection(accentColor),
                       
                       const SizedBox(height: 32),
                       const Divider(color: Color(0xFF111111), thickness: 2),
@@ -739,6 +748,59 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         const Text("•", style: TextStyle(color: Color(0xFF111111))),
         const SizedBox(width: 15),
         Text("${_movie.voteAverage} SCORE", style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+      ],
+    );
+  }
+
+  Widget _buildWatchProvidersSection(Color accent) {
+    if (_watchProviders.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel("WHERE TO WATCH", accent),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _watchProviders.length,
+            itemBuilder: (context, index) {
+              final provider = _watchProviders[index];
+              return Container(
+                margin: const EdgeInsets.only(right: 16),
+                width: 60,
+                child: Column(
+                  children: [
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111111),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: provider['logo_path'] != null 
+                            ? Image.network('https://image.tmdb.org/t/p/w200${provider['logo_path']}', fit: BoxFit.cover)
+                            : const Icon(Icons.live_tv, color: Color(0xFFF4F4EC)),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      provider['type'].toString().toUpperCase(),
+                      style: const TextStyle(color: Color(0xFF454545), fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }

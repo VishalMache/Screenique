@@ -539,6 +539,57 @@ class MovieService {
     return null;
   }
 
+  Future<List<Map<String, dynamic>>> getWatchProviders(int id, {required bool isTv}) async {
+    final type = isTv ? 'tv' : 'movie';
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/$type/$id/watch/providers?api_key=$_apiKey'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> results = json.decode(response.body)['results'] ?? {};
+        
+        // Prioritize India, fallback to US
+        Map<String, dynamic>? data = results['IN'];
+        if (data == null || (data['flatrate'] == null && data['rent'] == null && data['buy'] == null && data['free'] == null)) {
+          data = results['US'];
+        }
+
+        if (data != null) {
+          final List flatrate = data['flatrate'] ?? [];
+          final List free = data['free'] ?? [];
+          final List rent = data['rent'] ?? [];
+          final List buy = data['buy'] ?? [];
+          
+          final List<Map<String, dynamic>> allProviders = [];
+          final Set<int> seenIds = {};
+
+          void addProviders(List list, String type) {
+            for (var item in list) {
+              final pid = item['provider_id'];
+              if (!seenIds.contains(pid)) {
+                seenIds.add(pid);
+                allProviders.add({
+                  'name': item['provider_name'],
+                  'logo_path': item['logo_path'],
+                  'type': type,
+                });
+              }
+            }
+          }
+
+          addProviders(flatrate, 'STREAM');
+          addProviders(free, 'FREE');
+          addProviders(rent, 'RENT');
+          addProviders(buy, 'BUY');
+          
+          return allProviders;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in getWatchProviders: $e");
+    }
+    return [];
+  }
+
   Future<List<MovieModel>> getSimilarMedia(int id, {required bool isTv}) async {
     final type = isTv ? 'tv' : 'movie';
     try {
