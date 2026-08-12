@@ -1,4 +1,4 @@
-package com.example.screenique
+package com.screenique.app
 
 import io.flutter.embedding.android.FlutterActivity
 

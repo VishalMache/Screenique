@@ -207,8 +207,7 @@ class _LoginScreenState extends State<LoginScreen>
       );
       if (mounted) {
         HapticFeedback.heavyImpact();
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (e) {
       _showMessage(e.message ?? "Sign in failed. Please try again.");
@@ -261,8 +260,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       _showMessage("Google sign-in failed. Please try again.");

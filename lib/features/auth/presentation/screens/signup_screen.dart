@@ -123,11 +123,7 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       _showMessage("Sign up failed. Please check your details.");
@@ -180,11 +176,7 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       _showMessage("Google sign-in failed. Please try again.");

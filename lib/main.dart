@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/secrets.dart';
 import 'firebase_options.dart';
 
 // Services & Screens
@@ -13,10 +13,11 @@ import 'features/auth/presentation/screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Fetch API keys from Firebase Remote Config (never bundled in APK).
+  await AppSecrets.init();
   await NotificationService().init();
   runApp(const ScreeniqueApp());
 }
@@ -64,17 +65,35 @@ class ScreeniqueApp extends StatelessWidget {
 
 // --- AUTH WRAPPER ---
 // This determines if we show the Login screen or the Home screen
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  late final Stream<User?> _authStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _authStream = AuthService().user;
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: AuthService().user,
+      stream: _authStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator(color: Color(0xFFD32F2F)))
+          );
+        }
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(child: Text("Authentication Error"))
           );
         }
         // If user is logged in, show HomeScreen, else show LoginScreen

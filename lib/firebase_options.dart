@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA4szppCXYxyEGdUndT7jjTBBDr0FZjaew',
-    appId: '1:209341589284:android:8ad9b1b7cd7ad34158f5b1',
+    appId: '1:209341589284:android:8a152457fca0ceab58f5b1',
     messagingSenderId: '209341589284',
     projectId: 'screenique-17e32',
     storageBucket: 'screenique-17e32.firebasestorage.app',
@@ -65,7 +65,7 @@ class DefaultFirebaseOptions {
     projectId: 'screenique-17e32',
     storageBucket: 'screenique-17e32.firebasestorage.app',
     iosClientId: '209341589284-et2al2mi0dv7q2cmm2mt2bejjq1g8iav.apps.googleusercontent.com',
-    iosBundleId: 'com.example.screenique',
+    iosBundleId: 'com.screenique.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -75,7 +75,7 @@ class DefaultFirebaseOptions {
     projectId: 'screenique-17e32',
     storageBucket: 'screenique-17e32.firebasestorage.app',
     iosClientId: '209341589284-et2al2mi0dv7q2cmm2mt2bejjq1g8iav.apps.googleusercontent.com',
-    iosBundleId: 'com.example.screenique',
+    iosBundleId: 'com.screenique.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
