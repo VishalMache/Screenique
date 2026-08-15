@@ -140,7 +140,22 @@ class _WatchlistTabState extends State<WatchlistTab> {
           .where('status', isEqualTo: 'watchlist')
           .snapshots(),
       builder: (context, moviesSnap) {
-        final docs = moviesSnap.data?.docs ?? [];
+        List<QueryDocumentSnapshot> docs = List.from(moviesSnap.data?.docs ?? []);
+        
+        // Sort recently logged to previous
+        docs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+          final timeA = dataA['watchlistAddedAt'] as String?;
+          final timeB = dataB['watchlistAddedAt'] as String?;
+          
+          if (timeA == null && timeB == null) return 0;
+          if (timeA == null) return 1;
+          if (timeB == null) return -1;
+          
+          return timeB.compareTo(timeA);
+        });
+
         final int filmCount = docs.where((d) => (d.data() as Map)['isTvShow'] != true).length;
         final int seriesCount = docs.length - filmCount;
 

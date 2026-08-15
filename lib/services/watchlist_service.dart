@@ -375,6 +375,10 @@ class WatchlistService {
       data['watchedAt'] = null;
     }
 
+    if (status == 'watchlist') {
+      data['watchlistAddedAt'] = DateTime.now().toIso8601String();
+    }
+
     await docRef.set(data, SetOptions(merge: true));
     await MovieService.clearCache();
     // Incremental taste profile update on watchlist add

@@ -19,7 +19,6 @@ import '../features/movie_lists/watchlist_tab.dart';
 import '../features/movie_lists/watched_tab.dart';
 import '../features/experiences/add_experience_screen.dart';
 import '../features/experiences/experiences_tab.dart';
-import '../features/world_cinema/world_cinema_screen.dart';
 import 'features/news/the_news_screen.dart';
 import 'features/bot/bot_chat_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -860,26 +859,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                flex: 4,
-                child: _buildSimpleCircularButton(
-                  label: "EXPLORE WORLD CINEMA",
-                  icon: Icons.public_rounded,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WorldCinemaScreen())),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: _buildSimpleCircularButton(
-                  label: "NEWS",
-                  icon: Icons.newspaper_rounded,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TheNewsScreen())),
-                ),
-              ),
-            ],
+          _buildSimpleCircularButton(
+            label: "NEWS",
+            icon: Icons.newspaper_rounded,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TheNewsScreen())),
           ),
         ],
       ),
