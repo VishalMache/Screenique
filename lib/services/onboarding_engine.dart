@@ -50,7 +50,6 @@ class OnboardingEngine {
           "Want the safe pick or the one that ruins your night in a good way?",
           "Your taste is impeccable. Let's find something worthy of it.",
           "I have some deep cuts curated specifically for your profile.",
-          "Master cinephile is back. Trust me with a blind pick?",
           "We know exactly what you like. Say the word."
         ];
         return strongMessages[_random.nextInt(strongMessages.length)];

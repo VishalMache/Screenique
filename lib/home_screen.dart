@@ -29,7 +29,6 @@ import 'widgets/cinebot_suggestion_card.dart';
 import '../../services/bot_service.dart';
 import 'widgets/dialogue_hero_widget.dart';
 import '../data/dialogues_data.dart';
-import '../profile_screen.dart';
 import 'settings_screen.dart';
 import 'widgets/custom_dialogue_forge_sheet.dart';
 import 'notifications_screen.dart';
@@ -46,22 +45,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   Map<String, dynamic>? _smartMovieData, _smartSeriesData;
   MovieModel? _proactivePick;
-  late MovieDialogue _currentDialogue;
   List<MovieDialogue> _activeDialogues = [];
+  List<MovieDialogue> _customDialogues = []; // Persisted user-forged dialogues only
+  int _currentDialogueIndex = 0;
   bool _onlyCustomDialogues = false;
-  bool _isLoading = true, _isSearching = false, _isWaitingForApi = false, _isPopupOpen = false, _showReloadPrompt = false;
+  bool _isLoading = true, _isSearching = false, _isWaitingForApi = false, _isPopupOpen = false;
   List<MovieModel> _searchResults = [];
   final List<String> _searchHistory = [];
   Timer? _debounce, _retryTimer;
   int _retryCount = 0;
   int _searchRequestId = 0;
-  String _lastRefreshTime = "Just now";
   StreamSubscription<AccelerometerEvent>? _shakeSub;
   DateTime _lastShake = DateTime.fromMillisecondsSinceEpoch(0);
   static const double _shakeThreshold = 15.5;
   static const Duration _shakeCooldown = Duration(seconds: 2);
   late AnimationController _flareController;
-  late Animation<double> _flarePulse;
   
   // Quick Add Context to separate FAB flows
   String? _quickAddContext; 
@@ -71,13 +69,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _activeDialogues = List.from(MovieDialogue.dialogues);
-    _currentDialogue = MovieDialogue.getRandom();
     _fetchCustomDialogues();
     _fetchInitialData();
     _startAutoRetryTimer();
     _initShakeListener();
     _flareController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
-    _flarePulse = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _flareController, curve: Curves.easeInOut));
     // Check if new user needs onboarding
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkOnboarding());
   }
@@ -155,7 +151,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _showReloadPrompt = false;
     });
     try {
       final results = await Future.wait([_movieService.getSmartMovieData(forceRefresh: force), _movieService.getSmartSeriesData(forceRefresh: force)]);
@@ -172,8 +167,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _smartSeriesData = results[1];
         _proactivePick = pick;
         _isLoading = false;
-        _lastRefreshTime = DateFormat('hh:mm a').format(DateTime.now());
-        if ((_smartMovieData?['movies'] as List).isEmpty && (_smartSeriesData?['movies'] as List).isEmpty) _showReloadPrompt = true;
       });
 
 
@@ -205,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      if (mounted) setState(() {_isLoading = false; _showReloadPrompt = true;});
+      if (mounted) setState(() {_isLoading = false;});
     }
   }
 
@@ -231,16 +224,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           movieTitle: data['movieTitle']?.toString() ?? "",
           posterUrl: data['posterUrl']?.toString() ?? "",
           tmdbId: data['tmdbId'] as int? ?? 0,
+          genre: 'CUSTOM',
         );
       }).toList();
 
       if (mounted) {
         setState(() {
+          _customDialogues = List.from(customList);
           if (_onlyCustomDialogues && customList.isNotEmpty) {
             _activeDialogues = List.from(customList);
-            _currentDialogue = _activeDialogues[0]; // Set active to first forged dialogue
+            _currentDialogueIndex = 0;
           } else {
             _activeDialogues = List.from(MovieDialogue.dialogues)..addAll(customList);
+            // Keep current index valid
+            if (_currentDialogueIndex >= _activeDialogues.length) _currentDialogueIndex = 0;
           }
         });
       }
@@ -282,12 +279,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (mounted) {
         setState(() {
+          _customDialogues.insert(0, newDialogue);
           _activeDialogues.insert(0, newDialogue); // Prepend custom dialogue
-          _currentDialogue = newDialogue; // Instantly show on hero!
+          _currentDialogueIndex = 0;
         });
       }
     } catch (e) {
       debugPrint("Error saving custom dialogue: $e");
+    }
+  }
+
+  Future<void> _deleteCustomDialogue(MovieDialogue dialogue) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    try {
+      // Find and delete from Firestore by matching quote+character
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('custom_dialogues')
+          .where('quote', isEqualTo: dialogue.quote)
+          .where('character', isEqualTo: dialogue.character)
+          .limit(1)
+          .get();
+      for (final doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+      await _fetchCustomDialogues();
+    } catch (e) {
+      debugPrint("Error deleting custom dialogue: $e");
     }
   }
 
@@ -307,6 +327,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             tmdbId: tmdbId,
           );
         },
+        customDialogues: _customDialogues,
+        onSetActive: (d) {
+          if (!mounted) return;
+          final idx = _activeDialogues.indexWhere(
+            (x) => x.quote == d.quote && x.character == d.character,
+          );
+          setState(() {
+            if (idx >= 0) {
+              _currentDialogueIndex = idx;
+            } else {
+              // It was filtered out (only-custom mode), just surface it
+              _activeDialogues.insert(0, d);
+              _currentDialogueIndex = 0;
+            }
+          });
+        },
+        onDelete: _deleteCustomDialogue,
       ),
     ).then((_) {
       if (mounted) {
@@ -315,40 +352,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
   }
-
-  Future<void> _toggleDialogueRotationMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _onlyCustomDialogues = !_onlyCustomDialogues;
-      prefs.setBool('onlyCustomDialogues', _onlyCustomDialogues);
-    });
-    HapticFeedback.mediumImpact();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _onlyCustomDialogues 
-              ? "DIALOGUE ROTATION: ONLY YOUR FORGED DIALOGUES" 
-              : "DIALOGUE ROTATION: SHUFFLING CLASSICS AND FORGED DIALOGUES",
-          style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-        ),
-        backgroundColor: const Color(0xFF111111),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-
-    await _fetchCustomDialogues();
-  }
-
-  Future<void> _manualArchiveRefresh() async {
-    HapticFeedback.mediumImpact();
-    _retryCount = 0;
-    await MovieService.clearCache();
-    await _fetchInitialData(force: true);
-  }
-
-
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -680,8 +683,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             // 1. DIALOGUE HERO
             DialogueHeroWidget(
-              dialogue: _currentDialogue,
+              dialogues: _activeDialogues,
+              currentIndex: _currentDialogueIndex,
               onForgeTap: _showCustomDialogueForge,
+              onIndexChanged: (i) {
+                if (mounted) setState(() {
+                  _currentDialogueIndex = i;
+                });
+              },
             ),
             const SizedBox(height: 8),
             // 2. QUICK ACCESS
@@ -766,10 +775,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ]);
 
   Widget _buildSquareIcon(IconData icon, VoidCallback onTap) => GestureDetector(onTap: onTap, child: Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFF111111)), child: Icon(icon, color: const Color(0xFFF4F4EC), size: 20)));
-
-
-
-  Widget _buildReloadTooltip() => TweenAnimationBuilder<double>(tween: Tween(begin: 0.0, end: 1.0), duration: const Duration(milliseconds: 500), curve: Curves.elasticOut, builder: (context, value, child) => Transform.scale(scale: value, alignment: Alignment.topRight, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: _retryCount > 0 ? Colors.blueGrey.withOpacity(0.9) : const Color(0xFFD32F2F), borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10)]), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(_retryCount > 0 ? Icons.sync : Icons.bolt, color: Colors.white, size: 14), const SizedBox(width: 6), Text(_retryCount > 0 ? "AUTO-SYNCING..." : "TAP TO SYNC", style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))]))));
 
   Widget _buildExperiencePrompt() {
     return Container(
@@ -1086,18 +1091,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ],
     ),
   );
-}
-
-class _ProjectorBeamPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Offset source = Offset(size.width / 2, -40);
-    final Path beamPath = Path()..moveTo(source.dx, source.dy)..lineTo(size.width * 0.06, size.height * 0.07)..lineTo(size.width * 0.94, size.height * 0.07)..close();
-    final Paint beamPaint = Paint()..shader = RadialGradient(center: const Alignment(0, -1.2), radius: 1.5, colors: [const Color(0xFF111111).withOpacity(0.05), Colors.transparent]).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    canvas.drawPath(beamPath, beamPaint);
-  }
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 class RollingCreditsBackground extends StatefulWidget {
