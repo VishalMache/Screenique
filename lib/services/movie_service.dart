@@ -646,6 +646,36 @@ class MovieService {
     return [];
   }
 
+  static List<MovieModel>? _trendingCache;
+  static DateTime? _trendingCacheTime;
+
+  Future<List<MovieModel>> getTrendingAll({bool forceRefresh = false}) async {
+    if (!forceRefresh && _trendingCache != null && _trendingCacheTime != null) {
+      if (DateTime.now().difference(_trendingCacheTime!).inHours < 1) {
+        return _trendingCache!;
+      }
+    }
+    
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/trending/all/week?api_key=$_apiKey&language=en-US'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body)['results'] ?? [];
+        _trendingCache = results
+            .where((m) => m['media_type'] == 'movie' || m['media_type'] == 'tv')
+            .take(15) // Limit to top 15 trending items
+            .map((m) => MovieModel.fromJson(m))
+            .toList();
+        _trendingCacheTime = DateTime.now();
+        return _trendingCache!;
+      }
+    } catch (e) {
+      debugPrint("Error in getTrendingAll: $e");
+    }
+    
+    return _trendingCache ?? [];
+  }
+
 
 }
 

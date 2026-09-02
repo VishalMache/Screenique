@@ -5,6 +5,7 @@ class MovieModel {
   final String title;
   final String overview;
   final String posterPath;
+  final String? backdropPath; // NEW: Backdrop path for cinematic hero
   final double voteAverage;
   final int voteCount; // NEW: For underrated/mainstream/overrated classification
   final String releaseDate;
@@ -47,6 +48,7 @@ class MovieModel {
     required this.title,
     required this.overview,
     required this.posterPath,
+    this.backdropPath,
     required this.voteAverage,
     this.voteCount = 0,
     required this.releaseDate,
@@ -130,6 +132,11 @@ class MovieModel {
              ? 'https://images.tmdb.org/t/p/w500${json['profile_path']}' 
              : '')
       ),
+      backdropPath: json['backdropPath'] ?? (
+          json['backdrop_path'] != null
+          ? 'https://images.tmdb.org/t/p/w780${json['backdrop_path']}'
+          : null
+      ),
       voteAverage: (json['vote_average'] ?? json['voteAverage'] ?? 0.0).toDouble(),
       voteCount: (json['vote_count'] ?? json['voteCount'] ?? 0).toInt(),
       releaseDate: json['release_date'] ?? json['first_air_date'] ?? json['releaseDate'] ?? 'N/A',
@@ -157,6 +164,7 @@ class MovieModel {
       'isPerson': isPerson,
       'biography': biography,
       'posterPath': posterPath,
+      'backdropPath': backdropPath,
       'voteAverage': voteAverage,
       'voteCount': voteCount,
       'releaseDate': releaseDate,
