@@ -135,7 +135,18 @@ class _TrendingHeroSlideshowState extends State<TrendingHeroSlideshow> {
                   setState(() => _currentIndex = idx);
                 },
                 itemBuilder: (context, index) {
-                  return _buildMovieSlide(context, _slides[index]);
+                  return AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, child) {
+                      double pageOffset = 0;
+                      if (_pageController.position.haveDimensions) {
+                        pageOffset = _pageController.page! - index;
+                      } else {
+                        pageOffset = (_currentIndex - index).toDouble();
+                      }
+                      return _buildMovieSlide(context, _slides[index], index, pageOffset);
+                    },
+                  );
                 },
               ),
             ),
@@ -150,9 +161,10 @@ class _TrendingHeroSlideshowState extends State<TrendingHeroSlideshow> {
     );
   }
 
-  Widget _buildMovieSlide(BuildContext context, MovieModel movie) {
+  Widget _buildMovieSlide(BuildContext context, MovieModel movie, int index, double pageOffset) {
     final hasBackdrop = movie.backdropPath != null && movie.backdropPath!.isNotEmpty;
     final imageUrl = hasBackdrop ? movie.backdropPath! : movie.posterPath;
+    final bool isActive = _currentIndex == index;
     
     return GestureDetector(
       onTap: () {
@@ -170,12 +182,22 @@ class _TrendingHeroSlideshowState extends State<TrendingHeroSlideshow> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image
-            Image.network(
-              imageUrl,
-              fit: hasBackdrop ? BoxFit.cover : BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-              errorBuilder: (c, e, s) => Container(color: const Color(0xFF333333)),
+            // Image with Parallax & Ken Burns
+            ClipRect(
+              child: AnimatedScale(
+                scale: isActive ? 1.15 : 1.0,
+                duration: const Duration(seconds: 8),
+                curve: Curves.linear,
+                child: FractionalTranslation(
+                  translation: Offset(pageOffset * 0.25, 0),
+                  child: Image.network(
+                    imageUrl,
+                    fit: hasBackdrop ? BoxFit.cover : BoxFit.fitWidth,
+                    alignment: Alignment.topCenter,
+                    errorBuilder: (c, e, s) => Container(color: const Color(0xFF333333)),
+                  ),
+                ),
+              ),
             ),
             
             // Left red bar

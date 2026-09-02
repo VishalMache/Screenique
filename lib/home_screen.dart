@@ -714,6 +714,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
             // 3. NOW PLAYING
             const TheatreCarousel(),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildSimpleCircularButton(
+                label: "EXPERIENCES HUB",
+                icon: Icons.confirmation_num_outlined,
+                onTap: () => _showCollectionOverlay(const ExperiencesTab(), "BEST EXPERIENCE HUB"),
+              ),
+            ),
             const SizedBox(height: 24),
 
             // 3.5. CINEBOT PROACTIVE PICK
@@ -1423,12 +1432,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 48),
               _buildNavIcon(
-                Icons.confirmation_num_outlined,
-                "Experiences",
-                () => _showCollectionOverlay(
-                  const ExperiencesTab(),
-                  "BEST EXPERIENCE HUB",
-                ),
+                Icons.new_releases_outlined,
+                "New Feature",
+                () {},
               ),
               _buildNavIcon(
                 Icons.settings_rounded,
@@ -1444,21 +1450,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         Positioned(
-          top: -16,
+          top: -24,
           left: MediaQuery.of(context).size.width / 2 - 28,
           child: GestureDetector(
             onTap: _showQuickAddMenu,
             child: Container(
               height: 56,
               width: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFFB51F24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFB51F24),
                 shape: BoxShape.circle,
-                boxShadow: [
+                border: Border.all(color: const Color(0xFFFFFFFF), width: 2),
+                boxShadow: const [
                   BoxShadow(
-                    color: Color(0x26111111),
-                    offset: Offset(0, 4),
-                    blurRadius: 8,
+                    color: Color(0x33111111),
+                    offset: Offset(0, 6),
+                    blurRadius: 12,
                   ),
                 ],
               ),
