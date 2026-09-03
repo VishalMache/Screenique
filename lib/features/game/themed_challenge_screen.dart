@@ -70,9 +70,9 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -130,9 +130,9 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1A1A),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF2A2A2A)),
+                            color: const Color(0xFF141416).withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,9 +200,9 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
                 width: double.infinity,
                 child: Material(
                   color: const Color(0xFFD32F2F),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     onTap: _proceed,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -244,12 +244,12 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color:
-                isSelected ? const Color(0xFFD32F2F) : const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(10),
+                isSelected ? const Color(0xFFD32F2F) : const Color(0xFF141416),
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: isSelected
                   ? const Color(0xFFD32F2F)
-                  : const Color(0xFF2A2A2A),
+                  : const Color(0xFFD32F2F).withOpacity(0.2),
             ),
           ),
           child: Column(
@@ -286,13 +286,13 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFFD32F2F).withOpacity(0.1)
-              : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(12),
+              ? const Color(0xFFD32F2F).withOpacity(0.15)
+              : const Color(0xFF141416).withOpacity(0.6),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFFD32F2F).withOpacity(0.5)
-                : const Color(0xFF2A2A2A),
+                ? const Color(0xFFD32F2F)
+                : const Color(0xFFD32F2F).withOpacity(0.2),
           ),
         ),
         child: Row(
@@ -331,9 +331,9 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: const Color(0xFF141416),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3)),
       ),
       child: Text(
         name,

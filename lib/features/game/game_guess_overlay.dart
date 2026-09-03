@@ -107,8 +107,8 @@ class _GameGuessOverlayState extends State<GameGuessOverlay> {
       builder: (_, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            color: Color(0xFF141416),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
           ),
           child: Column(
             children: [
@@ -154,9 +154,9 @@ class _GameGuessOverlayState extends State<GameGuessOverlay> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF222222),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF333333)),
+                    color: const Color(0xFF09090B),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFF2A2A2A)),
                   ),
                   child: TextField(
                     controller: _controller,
@@ -216,7 +216,7 @@ class _GameGuessOverlayState extends State<GameGuessOverlay> {
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFD32F2F).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                           color: const Color(0xFFD32F2F).withOpacity(0.4)),
                     ),
@@ -263,15 +263,15 @@ class _GameGuessOverlayState extends State<GameGuessOverlay> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF222222),
-                                borderRadius: BorderRadius.circular(12),
+                                color: const Color(0xFF09090B),
+                                borderRadius: BorderRadius.circular(4),
                                 border:
                                     Border.all(color: const Color(0xFF2A2A2A)),
                               ),
                               child: Row(
                                 children: [
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(2),
                                     child: movie.posterPath.isNotEmpty
                                         ? CachedNetworkImage(
                                             imageUrl: movie.posterPath,
@@ -336,9 +336,9 @@ class _GameGuessOverlayState extends State<GameGuessOverlay> {
                     color: _selected != null || _controller.text.isNotEmpty
                         ? const Color(0xFFD32F2F)
                         : const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                       onTap: _controller.text.isNotEmpty ? _submitGuess : null,
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),

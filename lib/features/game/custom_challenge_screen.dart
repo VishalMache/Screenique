@@ -100,9 +100,9 @@ class _CustomChallengeScreenState extends State<CustomChallengeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -175,15 +175,15 @@ class _CustomChallengeScreenState extends State<CustomChallengeScreen> {
                                   margin: const EdgeInsets.only(right: 6),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: _selectedEraName == e['name']
-                                        ? const Color(0xFFD32F2F)
-                                        : const Color(0xFF1A1A1A),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
                                       color: _selectedEraName == e['name']
                                           ? const Color(0xFFD32F2F)
-                                          : const Color(0xFF2A2A2A),
-                                    ),
+                                          : const Color(0xFF141416),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: _selectedEraName == e['name']
+                                            ? const Color(0xFFD32F2F)
+                                            : const Color(0xFFD32F2F).withOpacity(0.2),
+                                      ),
                                   ),
                                   child: Column(
                                     children: [
@@ -237,7 +237,7 @@ class _CustomChallengeScreenState extends State<CustomChallengeScreen> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFD32F2F).withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                             color: const Color(0xFFD32F2F).withOpacity(0.3)),
                       ),
@@ -274,11 +274,11 @@ class _CustomChallengeScreenState extends State<CustomChallengeScreen> {
                 color: _canProceed
                     ? const Color(0xFFD32F2F)
                     : const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: _canProceed ? _proceed : null,
-                  child: Padding(
+                  borderRadius: BorderRadius.circular(4),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: _canProceed ? _proceed : null,
+                    child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
                       _canProceed ? 'CONTINUE →' : 'SELECT AT LEAST ONE FILTER',
@@ -325,12 +325,12 @@ class _CustomChallengeScreenState extends State<CustomChallengeScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFD32F2F) : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(20),
+          color: selected ? const Color(0xFFD32F2F) : const Color(0xFF141416),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: selected
                 ? const Color(0xFFD32F2F)
-                : const Color(0xFF2A2A2A),
+                : const Color(0xFFD32F2F).withOpacity(0.2),
           ),
         ),
         child: Text(

@@ -134,9 +134,9 @@ class _GameplayUltimateScreenState extends State<GameplayUltimateScreen>
     final attemptsLeft = _config.maxAttempts - _currentRound.wrongGuesses;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -235,7 +235,7 @@ class _GameplayUltimateScreenState extends State<GameplayUltimateScreen>
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: const Color(0xFF2A1111),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                             color: const Color(0xFFD32F2F).withOpacity(0.4)),
                       ),
@@ -275,7 +275,7 @@ class _GameplayUltimateScreenState extends State<GameplayUltimateScreen>
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0A2A0A),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.5)),
                       ),
                       child: const Row(
@@ -300,9 +300,9 @@ class _GameplayUltimateScreenState extends State<GameplayUltimateScreen>
                     width: double.infinity,
                     child: Material(
                       color: const Color(0xFFD32F2F),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                         onTap: _currentRound.isSolved ? null : _showGuessOverlay,
                         child: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
@@ -365,10 +365,10 @@ class _GameplayUltimateScreenState extends State<GameplayUltimateScreen>
     required VoidCallback? onTap,
   }) {
     return Material(
-      color: const Color(0xFF1A1A1A),
-      borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFF141416),
+      borderRadius: BorderRadius.circular(4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),

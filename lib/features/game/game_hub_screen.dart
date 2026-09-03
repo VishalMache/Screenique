@@ -60,9 +60,32 @@ class _GameHubScreenState extends State<GameHubScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
-      body: SafeArea(
-        child: FadeTransition(
+      backgroundColor: const Color(0xFF09090B),
+      body: Stack(
+        children: [
+          // Background Glow
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFD32F2F).withOpacity(0.15),
+                // Blur effect
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD32F2F).withOpacity(0.2),
+                    blurRadius: 100,
+                    spreadRadius: 50,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: FadeTransition(
           opacity: _fadeAnim,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +126,9 @@ class _GameHubScreenState extends State<GameHubScreen>
               ),
             ],
           ),
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -132,16 +157,24 @@ class _GameHubScreenState extends State<GameHubScreen>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Pick your\nchallenge.',
+            'CHOOSE YOUR\nARENA.',
             style: TextStyle(
               color: Color(0xFFF4F4EC),
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: FontWeight.w900,
               height: 1.1,
-              letterSpacing: -0.5,
+              letterSpacing: -1.0,
+              fontFamily: 'Impact',
+              shadows: [
+                Shadow(
+                  color: Color(0x80D32F2F),
+                  offset: Offset(0, 4),
+                  blurRadius: 12,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             _streak > 0
                 ? '🔥 $_streak day streak · $_xp XP earned'
@@ -159,12 +192,19 @@ class _GameHubScreenState extends State<GameHubScreen>
 
   Widget _buildStatsBar() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
+        color: const Color(0xFF141416).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD32F2F).withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -209,7 +249,21 @@ class _GameHubScreenState extends State<GameHubScreen>
   }
 
   Widget _buildStatDivider() {
-    return Container(width: 1, height: 32, color: const Color(0xFF2A2A2A));
+    return Container(
+      width: 1, 
+      height: 36, 
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF2A2A2A).withOpacity(0.0),
+            const Color(0xFFD32F2F).withOpacity(0.5),
+            const Color(0xFF2A2A2A).withOpacity(0.0),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSectionLabel(String label) {
@@ -246,14 +300,15 @@ class _GameHubScreenState extends State<GameHubScreen>
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1E0A0A), Color(0xFF2A0D0D), Color(0xFF1A1A1A)],
+            colors: [Color(0xFF2B0A0A), Color(0xFF1A0505), Color(0xFF0F0F0F)],
           ),
-          border: Border.all(color: const Color(0xFFD32F2F), width: 1.5),
+          border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.8), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFD32F2F).withOpacity(0.2),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
+              color: const Color(0xFFD32F2F).withOpacity(0.25),
+              blurRadius: 24,
+              spreadRadius: 2,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -300,9 +355,13 @@ class _GameHubScreenState extends State<GameHubScreen>
                           'THE SCREENIQUE GUESS',
                           style: TextStyle(
                             color: Color(0xFFF4F4EC),
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
+                            letterSpacing: 2.0,
+                            fontFamily: 'Impact',
+                            shadows: [
+                              Shadow(color: Color(0xFFD32F2F), blurRadius: 10)
+                            ],
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -380,17 +439,17 @@ class _GameHubScreenState extends State<GameHubScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'PLAY',
+                          'PLAY NOW',
                           style: TextStyle(
                             color: Color(0xFFF4F4EC),
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1.0,
+                            letterSpacing: 1.5,
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward_rounded,
-                            color: Color(0xFFF4F4EC), size: 14),
+                        SizedBox(width: 8),
+                        Icon(Icons.sports_esports_rounded,
+                            color: Color(0xFFF4F4EC), size: 16),
                       ],
                     ),
                   ),

@@ -133,9 +133,9 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
     final attemptsLeft = _config.maxAttempts - _currentRound.wrongGuesses;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -201,9 +201,9 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF2A2A2A)),
+                  color: const Color(0xFF141416),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3)),
                 ),
                 child: Text(
                   '"${_dialogue.quote}"',
@@ -251,9 +251,9 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
               width: double.infinity,
               child: Material(
                 color: const Color(0xFFD32F2F),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(4),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   onTap: _currentRound.isSolved ? null : _showGuessOverlay,
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
@@ -307,10 +307,10 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
           decoration: BoxDecoration(
-            color: revealed ? const Color(0xFF1E1010) : const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(12),
+            color: revealed ? const Color(0xFF1E1010) : const Color(0xFF141416),
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: revealed ? const Color(0xFFD32F2F).withOpacity(0.4) : const Color(0xFF2A2A2A),
+              color: revealed ? const Color(0xFFD32F2F).withOpacity(0.4) : const Color(0xFFD32F2F).withOpacity(0.2),
             ),
           ),
           child: Column(
@@ -356,7 +356,7 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isCorrect ? const Color(0xFF0A2A0A) : const Color(0xFF2A1111),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
@@ -371,10 +371,10 @@ class _GameplayDialogueScreenState extends State<GameplayDialogueScreen>
 
   Widget _buildSecBtn(String label, String sublabel, VoidCallback? onTap) {
     return Material(
-      color: const Color(0xFF1A1A1A),
-      borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFF141416),
+      borderRadius: BorderRadius.circular(4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),

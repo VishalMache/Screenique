@@ -69,9 +69,9 @@ class _ChooseDifficultyScreenState extends State<ChooseDifficultyScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -116,9 +116,9 @@ class _ChooseDifficultyScreenState extends State<ChooseDifficultyScreen>
                 width: double.infinity,
                 child: Material(
                   color: const Color(0xFFD32F2F),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     onTap: _proceed,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
@@ -152,13 +152,22 @@ class _ChooseDifficultyScreenState extends State<ChooseDifficultyScreen>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? config.color.withOpacity(0.1)
-              : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
+              ? config.color.withOpacity(0.15)
+              : const Color(0xFF141416).withOpacity(0.8),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? config.color : const Color(0xFF2A2A2A),
+            color: isSelected ? config.color : const Color(0xFFD32F2F).withOpacity(0.2),
             width: isSelected ? 1.5 : 1.0,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: config.color.withOpacity(0.2),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : null,
         ),
         child: Row(
           children: [
@@ -169,8 +178,8 @@ class _ChooseDifficultyScreenState extends State<ChooseDifficultyScreen>
               decoration: BoxDecoration(
                 color: isSelected
                     ? config.color.withOpacity(0.2)
-                    : const Color(0xFF222222),
-                borderRadius: BorderRadius.circular(12),
+                    : const Color(0xFF141416),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Center(
                 child: Text(config.emoji, style: const TextStyle(fontSize: 22)),

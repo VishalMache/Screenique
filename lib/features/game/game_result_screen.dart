@@ -67,7 +67,7 @@ class _GameResultScreenState extends State<GameResultScreen>
     final isSolved = result.solvedCount > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -111,7 +111,7 @@ class _GameResultScreenState extends State<GameResultScreen>
                             width: 120,
                             height: 180,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1A),
+                              color: const Color(0xFF141416),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Icon(Icons.movie_rounded,
@@ -180,7 +180,7 @@ class _GameResultScreenState extends State<GameResultScreen>
                           color: DifficultyConfig.fromEnum(result.difficulty)
                               .color
                               .withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(
                             color: DifficultyConfig.fromEnum(result.difficulty)
                                 .color
@@ -251,7 +251,7 @@ class _GameResultScreenState extends State<GameResultScreen>
                             horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
                           color: const Color(0xFFD32F2F).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(
                               color: const Color(0xFFD32F2F).withOpacity(0.3)),
                         ),
@@ -275,7 +275,7 @@ class _GameResultScreenState extends State<GameResultScreen>
                         horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFD700).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                           color: const Color(0xFFFFD700).withOpacity(0.4)),
                     ),
@@ -297,10 +297,10 @@ class _GameResultScreenState extends State<GameResultScreen>
                 SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF141416),
+                    borderRadius: BorderRadius.circular(4),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                       onTap: () {
                         // Share result text
                         final text =
@@ -341,9 +341,9 @@ class _GameResultScreenState extends State<GameResultScreen>
                   width: double.infinity,
                   child: Material(
                     color: const Color(0xFFD32F2F),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                       onTap: () {
                         // Pop back to challenge selection
                         Navigator.of(context)
@@ -403,9 +403,9 @@ class _GameResultScreenState extends State<GameResultScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF2A2A2A)),
+            color: const Color(0xFF141416),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,8 +464,8 @@ class _GameResultScreenState extends State<GameResultScreen>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF222222),
-                          borderRadius: BorderRadius.circular(8),
+                          color: const Color(0xFF09090B),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

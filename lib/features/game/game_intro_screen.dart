@@ -79,7 +79,7 @@ class _GameIntroScreenState extends State<GameIntroScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       body: Stack(
         children: [
           // Background film grain texture
@@ -143,9 +143,10 @@ class _GameIntroScreenState extends State<GameIntroScreen>
                             'SCREENIQUE',
                             style: TextStyle(
                               color: Color(0xFFD32F2F),
-                              fontSize: 13,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 4.0,
+                              fontFamily: 'Impact',
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -159,13 +160,17 @@ class _GameIntroScreenState extends State<GameIntroScreen>
                                   'GUESS',
                                   style: TextStyle(
                                     color: Color(0xFFF4F4EC),
-                                    fontSize: 36,
+                                    fontSize: 48,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 3.0,
+                                    fontFamily: 'Impact',
+                                    shadows: [
+                                      Shadow(color: Color(0xFFD32F2F), blurRadius: 16, offset: Offset(0, 4))
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 40, child: Divider(color: Color(0xFF333333), thickness: 1)),
+                              const SizedBox(width: 30, child: Divider(color: Color(0xFFD32F2F), thickness: 2)),
                             ],
                           ),
                         ],
@@ -215,12 +220,12 @@ class _GameIntroScreenState extends State<GameIntroScreen>
                           width: double.infinity,
                           child: Material(
                             color: const Color(0xFFD32F2F),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(4),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(4),
                               onTap: _proceed,
                               child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
+                                padding: EdgeInsets.symmetric(vertical: 18),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -290,8 +295,8 @@ class _GrainPainter extends CustomPainter {
         center: Alignment.center,
         radius: 1.0,
         colors: [
-          const Color(0xFF1A0808).withOpacity(0.0),
-          const Color(0xFF000000).withOpacity(0.5),
+          const Color(0xFF4A0A0A).withOpacity(0.3),
+          const Color(0xFF09090B).withOpacity(0.9),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);

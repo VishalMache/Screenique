@@ -59,9 +59,9 @@ class _ChooseChallengeScreenState extends State<ChooseChallengeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -129,13 +129,13 @@ class _ChooseChallengeScreenState extends State<ChooseChallengeScreen>
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFD32F2F), width: 1.5),
+          color: const Color(0xFF141416),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.8), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFD32F2F).withOpacity(0.12),
-              blurRadius: 16,
+              color: const Color(0xFFD32F2F).withOpacity(0.15),
+              blurRadius: 20,
               offset: const Offset(0, 4),
             ),
           ],
@@ -201,9 +201,9 @@ class _ChooseChallengeScreenState extends State<ChooseChallengeScreen>
                 width: double.infinity,
                 child: Material(
                   color: const Color(0xFFD32F2F),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(4),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(4),
                     onTap: _goToQuickMix,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
@@ -241,9 +241,9 @@ class _ChooseChallengeScreenState extends State<ChooseChallengeScreen>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF2A2A2A)),
+          color: const Color(0xFF141416).withOpacity(0.6),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.2)),
         ),
         child: Row(
           children: [
@@ -298,9 +298,9 @@ class _ChooseChallengeScreenState extends State<ChooseChallengeScreen>
   void _showInfoSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: const Color(0xFF141416),
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(8))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

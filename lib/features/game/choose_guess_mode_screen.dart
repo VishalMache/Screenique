@@ -207,9 +207,9 @@ class _ChooseGuessModeScreenState extends State<ChooseGuessModeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -254,9 +254,9 @@ class _ChooseGuessModeScreenState extends State<ChooseGuessModeScreen>
                 width: double.infinity,
                 child: Material(
                   color: const Color(0xFFD32F2F),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     onTap: _loading ? null : _startGame,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -310,15 +310,24 @@ class _ChooseGuessModeScreenState extends State<ChooseGuessModeScreen>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFFD32F2F).withOpacity(0.1)
-              : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
+              ? const Color(0xFFD32F2F).withOpacity(0.15)
+              : const Color(0xFF141416).withOpacity(0.8),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFFD32F2F)
-                : const Color(0xFF2A2A2A),
+                : const Color(0xFFD32F2F).withOpacity(0.2),
             width: isSelected ? 1.5 : 1.0,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFD32F2F).withOpacity(0.2),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : null,
         ),
         child: Row(
           children: [
@@ -328,8 +337,8 @@ class _ChooseGuessModeScreenState extends State<ChooseGuessModeScreen>
               decoration: BoxDecoration(
                 color: isSelected
                     ? const Color(0xFFD32F2F).withOpacity(0.2)
-                    : const Color(0xFF222222),
-                borderRadius: BorderRadius.circular(14),
+                    : const Color(0xFF141416),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Center(
                 child: Text(emoji, style: const TextStyle(fontSize: 24)),

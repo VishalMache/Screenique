@@ -15,9 +15,9 @@ class ThemedResultScreen extends StatelessWidget {
             .round();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF09090B),
         elevation: 0,
         automaticallyImplyLeading: false,
         title: const Text(
@@ -88,18 +88,18 @@ class ThemedResultScreen extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A),
-                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFF141416),
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                         color: round.isSolved
                             ? const Color(0xFF4CAF50).withOpacity(0.3)
-                            : const Color(0xFF2A2A2A),
+                            : const Color(0xFFD32F2F).withOpacity(0.2),
                       ),
                     ),
                     child: Row(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(2),
                           child: CachedNetworkImage(
                             imageUrl: round.posterUrl,
                             width: 40,
@@ -160,9 +160,9 @@ class ThemedResultScreen extends StatelessWidget {
                 width: double.infinity,
                 child: Material(
                   color: const Color(0xFFD32F2F),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                     onTap: () {
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     },
