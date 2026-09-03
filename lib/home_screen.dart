@@ -30,6 +30,7 @@ import '../../services/bot_service.dart';
 import 'widgets/trending_hero_slideshow.dart'; // NEW
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
+import 'features/game/game_hub_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1432,9 +1433,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 48),
               _buildNavIcon(
-                Icons.new_releases_outlined,
-                "New Feature",
-                () {},
+                Icons.sports_esports_rounded,
+                "Games",
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GameHubScreen(),
+                  ),
+                ),
               ),
               _buildNavIcon(
                 Icons.settings_rounded,

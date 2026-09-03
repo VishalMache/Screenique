@@ -1,0 +1,308 @@
+import '../models/game_models.dart';
+
+/// All themed game categories organized by group.
+/// TMDB query params are embedded in each ThemeCategory.
+const List<ThemeCategory> allThemeCategories = [
+
+  // ─── POPULAR ──────────────────────────────────────────────────────────────
+  ThemeCategory(
+    id: 'blockbusters',
+    name: 'Blockbusters',
+    emoji: '🍿',
+    group: 'POPULAR',
+    description: 'Famous and widely loved movies that shaped pop culture.',
+    minVoteAverage: 7.0,
+    minVoteCount: 5000,
+    sortBy: 'revenue.desc',
+  ),
+  ThemeCategory(
+    id: 'marvel',
+    name: 'Marvel',
+    emoji: '🦸',
+    group: 'POPULAR',
+    description: 'The Marvel Cinematic Universe — heroes, villains, and multiverse chaos.',
+    keywordIds: [180547], // MCU keyword ID
+    genreIds: [28, 878],
+    minVoteCount: 3000,
+  ),
+  ThemeCategory(
+    id: 'dc',
+    name: 'DC',
+    emoji: '🦇',
+    group: 'POPULAR',
+    description: 'The DC Universe — from Gotham to the Justice League.',
+    keywordIds: [12377], // DC Comics keyword ID
+    genreIds: [28, 878],
+    minVoteCount: 2000,
+  ),
+  ThemeCategory(
+    id: 'award_winners',
+    name: 'Award Winners',
+    emoji: '🏆',
+    group: 'POPULAR',
+    description: 'Oscar-nominated and award-winning cinema.',
+    minVoteAverage: 7.5,
+    minVoteCount: 2000,
+    sortBy: 'vote_average.desc',
+  ),
+  ThemeCategory(
+    id: 'trending',
+    name: 'Trending',
+    emoji: '🔥',
+    group: 'POPULAR',
+    description: 'What the world is watching right now.',
+    sortBy: 'popularity.desc',
+    minVoteCount: 500,
+  ),
+
+  // ─── INDUSTRY ─────────────────────────────────────────────────────────────
+  ThemeCategory(
+    id: 'bollywood',
+    name: 'Bollywood',
+    emoji: '🇮🇳',
+    group: 'INDUSTRY',
+    description: 'Indian Hindi-language cinema — drama, music, and masala.',
+    withOriginCountry: 'IN',
+    genreIds: [18, 10749, 35],
+    minVoteCount: 300,
+  ),
+  ThemeCategory(
+    id: 'hollywood',
+    name: 'Hollywood',
+    emoji: '🇺🇸',
+    group: 'INDUSTRY',
+    description: 'The best of American mainstream cinema.',
+    withOriginCountry: 'US',
+    minVoteAverage: 6.5,
+    minVoteCount: 2000,
+    sortBy: 'popularity.desc',
+  ),
+  ThemeCategory(
+    id: 'korean_cinema',
+    name: 'Korean Cinema',
+    emoji: '🇰🇷',
+    group: 'INDUSTRY',
+    description: 'K-cinema — from Parasite to Oldboy, raw and unforgettable.',
+    withOriginCountry: 'KR',
+    minVoteCount: 200,
+    minVoteAverage: 7.0,
+  ),
+  ThemeCategory(
+    id: 'japanese_cinema',
+    name: 'Japanese Cinema',
+    emoji: '🇯🇵',
+    group: 'INDUSTRY',
+    description: 'From Kurosawa to Miyazaki — Japanese masters of storytelling.',
+    withOriginCountry: 'JP',
+    minVoteCount: 200,
+    minVoteAverage: 7.0,
+  ),
+  ThemeCategory(
+    id: 'spanish_cinema',
+    name: 'Spanish Cinema',
+    emoji: '🇪🇸',
+    group: 'INDUSTRY',
+    description: 'Spanish-language films from Spain and Latin America.',
+    withOriginCountry: 'ES',
+    minVoteCount: 200,
+    minVoteAverage: 6.5,
+  ),
+
+  // ─── GENRE ────────────────────────────────────────────────────────────────
+  ThemeCategory(
+    id: 'horror',
+    name: 'Horror',
+    emoji: '👻',
+    group: 'GENRE',
+    description: 'Spine-chilling horror from slashers to psychological terror.',
+    genreIds: [27],
+    minVoteCount: 500,
+  ),
+  ThemeCategory(
+    id: 'comedy',
+    name: 'Comedy',
+    emoji: '😂',
+    group: 'GENRE',
+    description: 'Movies that made the world laugh.',
+    genreIds: [35],
+    minVoteCount: 1000,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: 'romance',
+    name: 'Romance',
+    emoji: '❤️',
+    group: 'GENRE',
+    description: 'Love stories that stayed with you.',
+    genreIds: [10749],
+    minVoteCount: 500,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: 'scifi',
+    name: 'Sci-Fi',
+    emoji: '🚀',
+    group: 'GENRE',
+    description: 'Science fiction — from space operas to dystopias.',
+    genreIds: [878],
+    minVoteCount: 1000,
+  ),
+  ThemeCategory(
+    id: 'thriller',
+    name: 'Thriller',
+    emoji: '🕵️',
+    group: 'GENRE',
+    description: 'Edge-of-your-seat psychological and crime thrillers.',
+    genreIds: [53, 9648],
+    minVoteCount: 1000,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: 'action',
+    name: 'Action',
+    emoji: '💥',
+    group: 'GENRE',
+    description: 'High-octane action that keeps you glued to the screen.',
+    genreIds: [28],
+    minVoteCount: 1500,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: 'drama',
+    name: 'Drama',
+    emoji: '🎭',
+    group: 'GENRE',
+    description: 'Powerful dramatic storytelling about the human condition.',
+    genreIds: [18],
+    minVoteCount: 1000,
+    minVoteAverage: 7.0,
+  ),
+
+  // ─── ERA ──────────────────────────────────────────────────────────────────
+  ThemeCategory(
+    id: '80s',
+    name: '80s',
+    emoji: '🎞️',
+    group: 'ERA',
+    description: 'Cult classics and blockbusters from the 1980s.',
+    yearFrom: 1980,
+    yearTo: 1989,
+    minVoteCount: 500,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: '90s',
+    name: '90s',
+    emoji: '📼',
+    group: 'ERA',
+    description: 'The golden decade — from grunge to Spielberg.',
+    yearFrom: 1990,
+    yearTo: 1999,
+    minVoteCount: 500,
+    minVoteAverage: 7.0,
+  ),
+  ThemeCategory(
+    id: '2000s',
+    name: '2000s',
+    emoji: '💿',
+    group: 'ERA',
+    description: 'The Y2K decade — superhero origins and digital revolution.',
+    yearFrom: 2000,
+    yearTo: 2009,
+    minVoteCount: 1000,
+    minVoteAverage: 6.5,
+  ),
+  ThemeCategory(
+    id: '2010s',
+    name: '2010s',
+    emoji: '📱',
+    group: 'ERA',
+    description: 'The streaming era begins — a decade of diverse storytelling.',
+    yearFrom: 2010,
+    yearTo: 2019,
+    minVoteCount: 1000,
+    minVoteAverage: 7.0,
+  ),
+  ThemeCategory(
+    id: '2020s',
+    name: '2020s',
+    emoji: '✨',
+    group: 'ERA',
+    description: 'Post-pandemic cinema — bold, experimental, and global.',
+    yearFrom: 2020,
+    yearTo: 2025,
+    minVoteCount: 500,
+    minVoteAverage: 6.5,
+  ),
+
+  // ─── SPECIAL ──────────────────────────────────────────────────────────────
+  ThemeCategory(
+    id: 'nolan',
+    name: 'Christopher Nolan',
+    emoji: '🎬',
+    group: 'SPECIAL',
+    description: 'Time, dreams, and complexity — the mind of Christopher Nolan.',
+    personId: 525, // Nolan TMDB ID
+    minVoteCount: 1000,
+  ),
+  ThemeCategory(
+    id: 'tarantino',
+    name: 'Tarantino',
+    emoji: '👑',
+    group: 'SPECIAL',
+    description: 'Non-linear storytelling, sharp dialogue, iconic violence.',
+    personId: 138, // Tarantino TMDB ID
+    minVoteCount: 500,
+  ),
+  ThemeCategory(
+    id: 'fantasy',
+    name: 'Fantasy',
+    emoji: '🧙',
+    group: 'SPECIAL',
+    description: 'Epic fantasy worlds — from Middle-Earth to Hogwarts.',
+    genreIds: [14],
+    minVoteCount: 1000,
+  ),
+  ThemeCategory(
+    id: 'superheroes',
+    name: 'Superheroes',
+    emoji: '🦸',
+    group: 'SPECIAL',
+    description: 'Marvel, DC, and beyond — the age of the superhero.',
+    genreIds: [28, 878, 14],
+    keywordIds: [9715], // superhero keyword
+    minVoteCount: 1000,
+  ),
+  ThemeCategory(
+    id: 'oscar_classics',
+    name: 'Oscar Classics',
+    emoji: '🎥',
+    group: 'SPECIAL',
+    description: 'Timeless Best Picture winners and nominees.',
+    minVoteAverage: 8.0,
+    minVoteCount: 3000,
+    sortBy: 'vote_average.desc',
+  ),
+];
+
+/// Returns only the unique group names, in display order.
+const List<String> themeGroups = [
+  'POPULAR',
+  'INDUSTRY',
+  'GENRE',
+  'ERA',
+  'SPECIAL',
+];
+
+/// Emoji for each group header
+const Map<String, String> groupEmojis = {
+  'POPULAR': '🌎',
+  'INDUSTRY': '🏭',
+  'GENRE': '🎭',
+  'ERA': '📅',
+  'SPECIAL': '⭐',
+};
+
+/// Returns categories filtered by group
+List<ThemeCategory> categoriesByGroup(String group) =>
+    allThemeCategories.where((c) => c.group == group).toList();
