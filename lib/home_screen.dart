@@ -1372,27 +1372,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isActive
-                  ? const Color(0xFFB51F24)
-                  : const Color(0xFF575757),
-              size: 24,
+              color: const Color(0xFF111111),
+              size: 26,
             ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                color: isActive
-                    ? const Color(0xFFB51F24)
-                    : const Color(0xFF575757),
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w900 : FontWeight.bold,
-                letterSpacing: 0.5,
+              style: const TextStyle(
+                color: Color(0xFF111111),
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
               ),
             ),
           ],
@@ -1407,23 +1403,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       clipBehavior: Clip.none,
       children: [
         Container(
-          height: 68,
+          height: 56,
           width: double.infinity,
           decoration: const BoxDecoration(
-            color: Color(0xFFFFFFFF),
+            color: Color(0xFFE2E2DB), // Slightly darker beige as per screenshot
             border: Border(
-              top: BorderSide(color: Color(0xFFD4D1C8), width: 1.0),
+              top: BorderSide(color: Color(0xFF111111), width: 1.5),
             ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavIcon(Icons.home_rounded, "Home", () {
+              _buildNavIcon(Icons.home, "HOME", () {
                 Navigator.popUntil(context, (route) => route.isFirst);
               }, isActive: true),
               _buildNavIcon(
-                Icons.explore_rounded,
-                "Discover",
+                Icons.sensors, // Matches the screenshot's broadcast ((.)) icon better
+                "CINECAST",
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1431,10 +1427,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 48),
+              const SizedBox(width: 72), // Space for center FAB
               _buildNavIcon(
-                Icons.sports_esports_rounded,
-                "Games",
+                Icons.sports_esports_rounded, // Restored game icon
+                "HUB",
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1443,8 +1439,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               _buildNavIcon(
-                Icons.settings_rounded,
-                "Settings",
+                Icons.settings,
+                "SETTING",
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1456,26 +1452,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         Positioned(
-          top: -24,
-          left: MediaQuery.of(context).size.width / 2 - 28,
+          top: -30,
+          left: MediaQuery.of(context).size.width / 2 - 32,
           child: GestureDetector(
             onTap: _showQuickAddMenu,
             child: Container(
-              height: 56,
-              width: 56,
+              height: 64,
+              width: 64,
               decoration: BoxDecoration(
                 color: const Color(0xFFB51F24),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFFFFFF), width: 2),
+                border: Border.all(color: const Color(0xFF111111), width: 2),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x33111111),
-                    offset: Offset(0, 6),
-                    blurRadius: 12,
+                    color: Color(0xFF111111),
+                    offset: Offset(4, 4), // Hard black neo-brutalist shadow
                   ),
                 ],
               ),
-              child: const Icon(Icons.add, color: Color(0xFFFFFFFF), size: 28),
+              child: const Icon(Icons.add, color: Color(0xFFF4F4EC), size: 32),
             ),
           ),
         ),

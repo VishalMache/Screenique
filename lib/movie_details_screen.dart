@@ -371,7 +371,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color noirCrimson = Color(0xFFD32F2F); // Using standard red for accent as requested by design
+    const Color noirCrimson = Color(0xFFD32F2F);
     final Color accentColor = noirCrimson;
     const Color bgColor = Color(0xFFF4F4EC);
     const Color textColor = Color(0xFF111111);
@@ -401,125 +401,125 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 8, bottom: 8),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: textColor, width: 1.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: textColor, size: 18),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, top: 8, bottom: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: textColor, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.share_outlined, color: textColor, size: 20),
-                onPressed: () {
-                  // Assuming share logic
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPoster(),
-                const SizedBox(height: 24),
-                _buildTitleSection(accentColor),
-                const SizedBox(height: 12),
-                _buildMetaData(accentColor),
-                const SizedBox(height: 24),
-                
-                if (_fullDetails?['tagline'] != null && _fullDetails!['tagline'].toString().isNotEmpty) ...[
-                  _buildTagline(),
-                  const SizedBox(height: 24),
-                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
-                  const SizedBox(height: 24),
-                ],
-                
-                _buildSectionLabel("SYNOPSIS", accentColor),
-                const SizedBox(height: 12),
-                Text(
-                  _movie.overview,
-                  style: const TextStyle(color: textColor, fontSize: 14, height: 1.6, fontWeight: FontWeight.w500),
-                ),
-                
-                const SizedBox(height: 24),
-                const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
-                const SizedBox(height: 24),
-                
-                _buildSectionLabel("TECHNICAL DETAILS", accentColor),
-                const SizedBox(height: 16),
-                _buildTechnicalManifest(accentColor),
-
-                if (_fullDetails?['production_companies'] != null && (_fullDetails!['production_companies'] as List).isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
-                  const SizedBox(height: 24),
-                  _buildSectionLabel("PRODUCTION STUDIOS", accentColor),
-                  const SizedBox(height: 12),
+          SafeArea(
+            bottom: false,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // We place the Back and Share buttons INSIDE the scroll view. 
+                  // This prevents the YoutubePlayer (PlatformView) from overlapping a fixed AppBar when scrolling.
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Text(
-                          (_fullDetails!['production_companies'] as List)
-                              .map((company) => company['name'])
-                              .join(" • "),
-                          style: const TextStyle(
-                            color: textColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: textColor, width: 1.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new, color: textColor, size: 18),
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: textColor, width: 1.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.share_outlined, color: textColor, size: 20),
+                          onPressed: () {
+                            // Assuming share logic
+                          },
+                        ),
+                      ),
                     ],
                   ),
-                ],
+                  const SizedBox(height: 20),
+                  
+                  _buildPoster(),
+                  const SizedBox(height: 24),
+                  
+                  _buildTitleSection(accentColor),
+                  const SizedBox(height: 12),
+                  _buildMetaData(accentColor),
+                  const SizedBox(height: 24),
+                  
+                  if (_fullDetails?['tagline'] != null && _fullDetails!['tagline'].toString().isNotEmpty) ...[
+                    _buildTagline(),
+                    const SizedBox(height: 24),
+                    const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                    const SizedBox(height: 24),
+                  ],
+                  
+                  _buildSectionLabel("SYNOPSIS", accentColor),
+                  const SizedBox(height: 12),
+                  Text(
+                    _movie.overview,
+                    style: const TextStyle(color: textColor, fontSize: 14, height: 1.6, fontWeight: FontWeight.w500),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                  const SizedBox(height: 24),
+                  
+                  _buildSectionLabel("TECHNICAL DETAILS", accentColor),
+                  const SizedBox(height: 16),
+                  _buildTechnicalManifest(accentColor),
 
-                if (_watchProviders.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
-                  const SizedBox(height: 24),
-                  _buildSectionLabel("WHERE TO WATCH", accentColor),
-                  const SizedBox(height: 16),
-                  _buildWatchProvidersSection(),
+                  if (_fullDetails?['production_companies'] != null && (_fullDetails!['production_companies'] as List).isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                    const SizedBox(height: 24),
+                    _buildSectionLabel("PRODUCTION STUDIOS", accentColor),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            (_fullDetails!['production_companies'] as List)
+                                .map((company) => company['name'])
+                                .join(" • "),
+                            style: const TextStyle(
+                              color: textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
+                  ],
+
+                  if (_watchProviders.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                    const SizedBox(height: 24),
+                    _buildSectionLabel("WHERE TO WATCH", accentColor),
+                    const SizedBox(height: 16),
+                    _buildWatchProvidersSection(),
+                  ],
+                  
+                  if (_cast.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                    const SizedBox(height: 24),
+                    _buildSectionLabel("CAST MEMBERS", accentColor),
+                    const SizedBox(height: 16),
+                    _buildCastSection(accentColor),
+                  ],
+                  
+                  const SizedBox(height: 32),
+                  _buildActionButtons(accentColor),
+                  SizedBox(height: _isInTheatres ? 140 : 60),
                 ],
-                
-                if (_cast.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
-                  const SizedBox(height: 24),
-                  _buildSectionLabel("CAST MEMBERS", accentColor),
-                  const SizedBox(height: 16),
-                  _buildCastSection(accentColor),
-                ],
-                
-                const SizedBox(height: 32),
-                _buildActionButtons(accentColor),
-                SizedBox(height: _isInTheatres ? 140 : 60),
-              ],
+              ),
             ),
           ),
           if (_isInTheatres)
@@ -589,52 +589,23 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
       child: Hero(
         tag: 'movie-poster-${_movie.id}',
         child: Container(
-          width: 320,
-          height: 320,
+          width: 220,
+          height: 330,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(77),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withAlpha(51),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               )
             ],
-          ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  _movie.posterPath,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                ),
-              ),
-              if (_fullDetails?['genres'] != null && (_fullDetails!['genres'] as List).isNotEmpty)
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD32F2F),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      (_fullDetails!['genres'] as List).first['name'].toString().toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            image: DecorationImage(
+              image: _movie.posterPath.isNotEmpty
+                  ? NetworkImage('https://image.tmdb.org/t/p/w500${_movie.posterPath}')
+                  : const AssetImage('assets/images/placeholder_poster.png') as ImageProvider,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
@@ -1070,28 +1041,46 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   Widget _buildBookingBar() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF111111),
-        border: Border(top: BorderSide(color: Color(0xFFD32F2F), width: 3)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111).withAlpha(240),
+        border: const Border(top: BorderSide(color: Color(0xFFD32F2F), width: 3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(100),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
+          )
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text("NOW PLAYING", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 10, letterSpacing: 3, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.local_movies_rounded, color: Color(0xFFD32F2F), size: 16),
+              const SizedBox(width: 8),
+              const Text("NOW PLAYING", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, letterSpacing: 4, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _buildBookingButton(
+                child: _buildGlassmorphicBookingButton(
                   title: "BOOKMYSHOW",
+                  icon: Icons.confirmation_num_rounded,
+                  color: const Color(0xFFF84464),
                   url: 'https://in.bookmyshow.com/search?q=${Uri.encodeComponent(_movie.title)}',
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildBookingButton(
+                child: _buildGlassmorphicBookingButton(
                   title: "DISTRICT",
+                  icon: Icons.location_on_rounded,
+                  color: const Color(0xFF4A90E2),
                   url: 'https://district.in/search?q=${Uri.encodeComponent(_movie.title)}',
                 ),
               ),
@@ -1102,21 +1091,34 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     );
   }
 
-  Widget _buildBookingButton({required String title, required String url}) {
+  Widget _buildGlassmorphicBookingButton({required String title, required IconData icon, required Color color, required String url}) {
     return GestureDetector(
-      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      onTap: () async {
+        if (await canLaunchUrl(Uri.parse(url))) {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+      },
       child: Container(
-        height: 48,
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFD32F2F),
-          border: Border.all(color: const Color(0xFFF4F4EC), width: 1.5),
+          color: color.withAlpha(25),
+          border: Border.all(color: color.withAlpha(150), width: 1.5),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.confirmation_num, color: Color(0xFFF4F4EC), size: 16),
+            Icon(icon, color: color, size: 18),
             const SizedBox(width: 8),
-            Text(title, style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, fontFamily: 'Impact')),
+            Text(
+              title,
+              style: TextStyle(
+                color: const Color(0xFFF4F4EC),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
           ],
         ),
       ),
