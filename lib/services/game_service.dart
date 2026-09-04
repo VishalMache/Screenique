@@ -6,14 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_models.dart';
 import '../models/movie_model.dart';
 import '../data/quick_mix_pool.dart';
-import '../data/game_themes_data.dart';
 import '../data/game_verdicts_data.dart';
 import '../data/dialogues_data.dart';
 import '../core/secrets.dart';
 import 'movie_service.dart';
 
 class GameService {
-  static const String _statsKey = 'game_stats_v1';
   static const String _streakKey = 'game_streak_v1';
   static const String _recentlyPlayedKey = 'game_recently_played_v1';
   static const String _recentThemesKey = 'game_recent_themes_v1';
@@ -22,41 +20,30 @@ class GameService {
   String get _apiKey => AppSecrets.tmdbApiKey;
   final String _baseUrl = 'https://api.tmdb.org/3';
 
-  // ─── QUICK MIX ─────────────────────────────────────────────────────────────
+  static const int _roundsPerSession = 10;
 
-  /// Returns a random Quick Mix round from the curated pool,
-  /// avoiding recently played movies.
-  Future<GameRound?> getQuickMixRound({
-    required GameDifficulty difficulty,
-    required GuessMode guessMode,
-  }) async {
+  // ─── QUICK MIX ────────────────────────────────────────────────────────────────
+
+  /// Returns 10 Quick Mix rounds from the curated pool.
+  Future<List<GameRound>> getQuickMixRounds() async {
     final recentIds = await _getRecentlyPlayedIds();
     final pool = List<Map<String, dynamic>>.from(quickMixPool);
     pool.shuffle(Random());
 
-    // Filter out recently played
     final available = pool.where((m) => !recentIds.contains(m['id'] as int)).toList();
-    final candidates = available.isNotEmpty ? available : pool; // fallback: ignore recents
+    final candidates = available.length >= _roundsPerSession ? available : pool;
 
-    if (candidates.isEmpty) return null;
-    final data = candidates.first;
-    return _buildRoundFromPoolData(data, guessMode, difficulty);
+    final rounds = <GameRound>[];
+    for (final data in candidates.take(_roundsPerSession)) {
+      rounds.add(_buildRoundFromPoolData(data));
+    }
+    return rounds;
   }
 
-  GameRound _buildRoundFromPoolData(
-    Map<String, dynamic> data,
-    GuessMode guessMode,
-    GameDifficulty difficulty,
-  ) {
-    final config = DifficultyConfig.fromEnum(difficulty);
-    final rawClues = (data['clues'] as List<dynamic>)
-        .take(config.maxClues)
-        .map((c) => GameClue(
-              type: c['type'],
-              label: c['label'],
-              content: c['content'],
-            ))
-        .toList();
+  GameRound _buildRoundFromPoolData(Map<String, dynamic> data) {
+    final rawClues = (data['clues'] as List<dynamic>);
+    // Pick 3–4 evidences, mixing types
+    final evidences = _selectEvidencesFromPool(rawClues, data);
 
     return GameRound(
       movieId: data['id'] as int,
@@ -69,43 +56,54 @@ class GameService {
       year: data['year'] as String? ?? '',
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
       interestingFact: data['fact'] as String?,
-      clues: guessMode == GuessMode.ultimate ? rawClues : [],
-      dialogueQuote: guessMode == GuessMode.dialogue
-          ? _getDialogueForMovie(data['id'] as int)
-          : null,
-      dialogueCharacter: guessMode == GuessMode.dialogue
-          ? _getDialogueCharacterForMovie(data['id'] as int)
-          : null,
+      evidences: evidences,
     );
   }
 
-  // ─── THEMED CHALLENGE ──────────────────────────────────────────────────────
+  List<Evidence> _selectEvidencesFromPool(List<dynamic> rawClues, Map<String, dynamic> data) {
+    // Always start with plot if available, then vary the rest
+    final result = <Evidence>[];
+    final random = Random();
 
-  /// Fetches 5 movies from TMDB for a themed challenge and builds game rounds.
-  Future<List<GameRound>> getThemedRounds({
-    required ThemeCategory theme,
-    required GameDifficulty difficulty,
-    required GuessMode guessMode,
-  }) async {
-    final movies = await _fetchThemeMovies(theme, difficulty);
+    for (final c in rawClues) {
+      final type = _evidenceTypeFromString(c['type'] as String);
+      result.add(Evidence(
+        type: type,
+        label: _labelForEvidenceType(type),
+        content: c['content'] as String,
+      ));
+    }
+
+    // Target 3 or 4 evidences (randomly pick)
+    final targetCount = random.nextBool() ? 3 : 4;
+    if (result.length > targetCount) {
+      return result.take(targetCount).toList();
+    }
+    return result;
+  }
+
+  // ─── THEMED CHALLENGE ─────────────────────────────────────────────────────────
+
+  /// Fetches 10 movies from TMDB for a themed challenge and builds game rounds.
+  Future<List<GameRound>> getThemedRounds({required ThemeCategory theme}) async {
+    final movies = await _fetchThemeMovies(theme);
     final recentIds = await _getRecentlyPlayedIds();
     final filtered = movies.where((m) => !recentIds.contains(m.id)).toList();
-    final candidates = filtered.isNotEmpty ? filtered : movies;
+    final candidates = filtered.length >= _roundsPerSession ? filtered : movies;
 
     final rounds = <GameRound>[];
-    for (final movie in candidates.take(5)) {
-      final round = await _buildRoundFromTmdb(movie, guessMode, difficulty);
+    for (final movie in candidates.take(_roundsPerSession)) {
+      final round = await _buildRoundFromTmdb(movie);
       if (round != null) rounds.add(round);
+      if (rounds.length >= _roundsPerSession) break;
     }
     return rounds;
   }
 
-  Future<List<MovieModel>> _fetchThemeMovies(
-      ThemeCategory theme, GameDifficulty difficulty) async {
+  Future<List<MovieModel>> _fetchThemeMovies(ThemeCategory theme) async {
     try {
       String url;
       if (theme.personId != null) {
-        // Director-based theme
         url = '$_baseUrl/discover/movie?api_key=$_apiKey'
             '&with_crew=${theme.personId}'
             '&sort_by=vote_count.desc';
@@ -130,12 +128,11 @@ class GameService {
           params.write('&vote_count.gte=${theme.minVoteCount}');
         }
         params.write('&sort_by=${theme.sortBy ?? "popularity.desc"}');
-        params.write('&page=${_difficultyPage(difficulty)}');
+        params.write('&page=1');
         url = params.toString();
       }
 
-      final response = await http.get(Uri.parse(url))
-          .timeout(const Duration(seconds: 8));
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final List results = json.decode(response.body)['results'] ?? [];
         final movies = results
@@ -150,19 +147,8 @@ class GameService {
     return [];
   }
 
-  /// Hard = page 3 (less popular), Medium = page 2, Easy = page 1
-  int _difficultyPage(GameDifficulty d) {
-    switch (d) {
-      case GameDifficulty.easy: return 1;
-      case GameDifficulty.medium: return 2;
-      case GameDifficulty.hard: return 3;
-    }
-  }
-
-  Future<GameRound?> _buildRoundFromTmdb(
-      MovieModel movie, GuessMode guessMode, GameDifficulty difficulty) async {
+  Future<GameRound?> _buildRoundFromTmdb(MovieModel movie) async {
     try {
-      final config = DifficultyConfig.fromEnum(difficulty);
       final details = await _movieService.getMediaDetails(movie.id, isTv: false);
       final castList = await _movieService.getMediaCast(movie.id, isTv: false);
 
@@ -171,14 +157,18 @@ class GameService {
       final tagline = details['tagline'] as String?;
       final overview = details['overview'] as String? ?? movie.overview;
       final fact = _extractFact(details);
+      final dialogueData = _getDialogueForMovie(movie.id);
 
-      final clues = _generateUltimateClues(
+      final evidences = _buildEvidences(
+        movieTitle: movie.title,
         overview: overview,
         tagline: tagline,
         director: director,
         cast: cast,
-        movieTitle: movie.title,
-        maxClues: config.maxClues,
+        year: movie.releaseDate.split('-').first,
+        fact: fact,
+        dialogue: dialogueData?['quote'],
+        dialogueCharacter: dialogueData?['character'],
       );
 
       return GameRound(
@@ -192,13 +182,7 @@ class GameService {
         year: movie.releaseDate.split('-').first,
         rating: movie.voteAverage,
         interestingFact: fact,
-        clues: guessMode == GuessMode.ultimate ? clues : [],
-        dialogueQuote: guessMode == GuessMode.dialogue
-            ? _getDialogueForMovie(movie.id)
-            : null,
-        dialogueCharacter: guessMode == GuessMode.dialogue
-            ? _getDialogueCharacterForMovie(movie.id)
-            : null,
+        evidences: evidences,
       );
     } catch (e) {
       debugPrint('GameService._buildRoundFromTmdb error: $e');
@@ -206,122 +190,143 @@ class GameService {
     }
   }
 
-  // ─── CUSTOM CHALLENGE ──────────────────────────────────────────────────────
+  // ─── EVIDENCE GENERATION ──────────────────────────────────────────────────────
 
-  /// Builds a custom challenge by combining genre + era + director preferences.
-  Future<List<GameRound>> getCustomRounds({
-    required int? genreId,
-    required int? yearFrom,
-    required int? yearTo,
-    required int? personId,
-    required GameDifficulty difficulty,
-    required GuessMode guessMode,
-  }) async {
-    try {
-      final params = StringBuffer('$_baseUrl/discover/movie?api_key=$_apiKey');
-      if (genreId != null) params.write('&with_genres=$genreId');
-      if (yearFrom != null) params.write('&primary_release_date.gte=$yearFrom-01-01');
-      if (yearTo != null) params.write('&primary_release_date.lte=$yearTo-12-31');
-      if (personId != null) params.write('&with_crew=$personId');
-      params.write('&vote_count.gte=500');
-      params.write('&sort_by=popularity.desc');
-      params.write('&page=${_difficultyPage(difficulty)}');
-
-      final response = await http.get(Uri.parse(params.toString()))
-          .timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final List results = json.decode(response.body)['results'] ?? [];
-        final movies = results
-            .map((m) => MovieModel.fromJson({...m, 'isPerson': false, 'media_type': 'movie'}))
-            .toList();
-        movies.shuffle(Random());
-
-        final rounds = <GameRound>[];
-        for (final movie in (movies as List<dynamic>).take(5)) {
-          final round = await _buildRoundFromTmdb(movie as MovieModel, guessMode, difficulty);
-          if (round != null) rounds.add(round);
-        }
-        return rounds;
-      }
-    } catch (e) {
-      debugPrint('GameService.getCustomRounds error: $e');
-    }
-    return [];
-  }
-
-  // ─── CLUE GENERATION ───────────────────────────────────────────────────────
-
-  List<GameClue> _generateUltimateClues({
+  /// Builds 3–4 diverse evidence items for a movie.
+  /// Randomizes which types are used so each round feels different.
+  List<Evidence> _buildEvidences({
+    required String movieTitle,
     required String overview,
     required String? tagline,
     required String? director,
     required List<String> cast,
-    required String movieTitle,
-    required int maxClues,
+    required String year,
+    required String? fact,
+    required String? dialogue,
+    required String? dialogueCharacter,
   }) {
-    final clues = <GameClue>[];
+    final random = Random();
+    final all = <Evidence>[];
 
-    // Clue 1 — Plot (always from overview, slightly obfuscated)
+    // 1. Plot (always available — obfuscate movie name)
     if (overview.isNotEmpty) {
-      clues.add(GameClue(
-        type: 'plot',
-        label: 'PLOT CLUE',
+      all.add(Evidence(
+        type: EvidenceType.plot,
+        label: 'PLOT',
         content: _obfuscateTitle(overview, movieTitle),
       ));
     }
 
-    // Clue 2 — Tagline or character hint
-    if (tagline != null && tagline.isNotEmpty && clues.length < maxClues) {
-      clues.add(GameClue(
-        type: 'tagline',
-        label: 'TAGLINE CLUE',
+    // 2. Tagline
+    if (tagline != null && tagline.isNotEmpty) {
+      all.add(Evidence(
+        type: EvidenceType.tagline,
+        label: 'TAGLINE',
         content: '"$tagline"',
-      ));
-    } else if (cast.isNotEmpty && clues.length < maxClues) {
-      clues.add(GameClue(
-        type: 'character',
-        label: 'CHARACTER CLUE',
-        content: 'This film features characters portrayed by ${cast.take(2).join(" and ")}.',
       ));
     }
 
-    // Clue 3 — Director
-    if (director != null && director.isNotEmpty && clues.length < maxClues) {
-      clues.add(GameClue(
-        type: 'director',
-        label: 'DIRECTOR CLUE',
+    // 3. Director
+    if (director != null && director.isNotEmpty) {
+      all.add(Evidence(
+        type: EvidenceType.director,
+        label: 'DIRECTOR',
         content: 'Directed by $director.',
       ));
     }
 
-    // Clue 4 — Cast
-    if (cast.isNotEmpty && clues.length < maxClues) {
+    // 4. Cast
+    if (cast.isNotEmpty) {
       final names = cast.take(3).join(', ');
-      clues.add(GameClue(
-        type: 'cast',
-        label: 'CAST CLUE',
+      all.add(Evidence(
+        type: EvidenceType.cast,
+        label: 'CAST',
         content: 'Stars: $names.',
       ));
     }
 
-    // Clue 5 — Full cast
-    if (cast.length > 3 && clues.length < maxClues) {
-      clues.add(GameClue(
-        type: 'cast',
-        label: 'FINAL CAST CLUE',
-        content: 'Full principal cast includes: ${cast.join(", ")}.',
+    // 5. Dialogue (if available in curated data)
+    if (dialogue != null && dialogue.isNotEmpty) {
+      final charStr = dialogueCharacter != null ? '\n— $dialogueCharacter' : '';
+      all.add(Evidence(
+        type: EvidenceType.dialogue,
+        label: 'DIALOGUE',
+        content: '"$dialogue"$charStr',
       ));
     }
 
-    return clues.take(maxClues).toList();
+    // 6. Year/Era trivia
+    if (year.isNotEmpty) {
+      all.add(Evidence(
+        type: EvidenceType.year,
+        label: 'ERA',
+        content: 'This film was released in $year.',
+      ));
+    }
+
+    // 7. Trivia/fact
+    if (fact != null && fact.isNotEmpty) {
+      all.add(Evidence(
+        type: EvidenceType.trivia,
+        label: 'TRIVIA',
+        content: fact,
+      ));
+    }
+
+    // Shuffle the optional evidences (everything after plot) for variety
+    if (all.length > 1) {
+      final plotClue = all.first;
+      final rest = all.sublist(1);
+      rest.shuffle(random);
+      all.clear();
+      all.add(plotClue);
+      all.addAll(rest);
+    }
+
+    // Target 3 or 4 evidences — pick 3 by default, 4 if lucky
+    final targetCount = random.nextDouble() < 0.4 ? 4 : 3;
+    return all.take(targetCount.clamp(3, all.length)).toList();
   }
 
-  /// Removes/replaces the movie title in the overview to prevent giveaways.
+  /// Score based on which evidence index the movie was solved on.
+  static int scoreForEvidence(int evidenceIndex, int wrongGuesses) {
+    const baseScores = [100, 80, 60, 40];
+    final base = evidenceIndex < baseScores.length ? baseScores[evidenceIndex] : 0;
+    final penalty = wrongGuesses * 5;
+    return (base - penalty).clamp(0, 100);
+  }
+
   String _obfuscateTitle(String text, String title) {
     return text
         .replaceAll(title, '●●●●●')
         .replaceAll(title.toLowerCase(), '●●●●●')
         .replaceAll(title.toUpperCase(), '●●●●●');
+  }
+
+  EvidenceType _evidenceTypeFromString(String s) {
+    switch (s) {
+      case 'plot':      return EvidenceType.plot;
+      case 'director':  return EvidenceType.director;
+      case 'cast':      return EvidenceType.cast;
+      case 'dialogue':  return EvidenceType.dialogue;
+      case 'tagline':   return EvidenceType.tagline;
+      case 'year':      return EvidenceType.year;
+      case 'trivia':
+      case 'fact':      return EvidenceType.trivia;
+      default:          return EvidenceType.plot;
+    }
+  }
+
+  String _labelForEvidenceType(EvidenceType t) {
+    switch (t) {
+      case EvidenceType.plot:      return 'PLOT';
+      case EvidenceType.director:  return 'DIRECTOR';
+      case EvidenceType.cast:      return 'CAST';
+      case EvidenceType.dialogue:  return 'DIALOGUE';
+      case EvidenceType.tagline:   return 'TAGLINE';
+      case EvidenceType.year:      return 'ERA';
+      case EvidenceType.trivia:    return 'TRIVIA';
+    }
   }
 
   String? _extractDirector(Map<String, dynamic> details) {
@@ -337,38 +342,22 @@ class GameService {
   }
 
   String? _extractFact(Map<String, dynamic> details) {
-    // Use tagline as interesting fact if available
     final tagline = details['tagline'] as String?;
     if (tagline != null && tagline.isNotEmpty) return tagline;
     return null;
   }
 
-  // ─── DIALOGUE MODE ─────────────────────────────────────────────────────────
-
-  String? _getDialogueForMovie(int tmdbId) {
+  Map<String, String>? _getDialogueForMovie(int tmdbId) {
     try {
       final dialogue = MovieDialogue.dialogues
-          .firstWhere((d) => d.tmdbId == tmdbId, orElse: () => MovieDialogue.getRandom());
-      return dialogue.quote;
-    } catch (_) {
-      return MovieDialogue.getRandom().quote;
-    }
-  }
-
-  String? _getDialogueCharacterForMovie(int tmdbId) {
-    try {
-      final dialogue = MovieDialogue.dialogues
-          .firstWhere((d) => d.tmdbId == tmdbId, orElse: () => MovieDialogue.getRandom());
-      return dialogue.character;
+          .firstWhere((d) => d.tmdbId == tmdbId, orElse: () => throw Exception());
+      return {'quote': dialogue.quote, 'character': dialogue.character};
     } catch (_) {
       return null;
     }
   }
 
-  /// Get a random dialogue clue not tied to a specific movie (for dialogue mode standalone).
-  MovieDialogue getRandomDialogueClue() => MovieDialogue.getRandom();
-
-  // ─── SEARCH ────────────────────────────────────────────────────────────────
+  // ─── SEARCH ───────────────────────────────────────────────────────────────────
 
   Future<List<MovieModel>> searchMoviesForGuess(String query) async {
     if (query.trim().length < 2) return [];
@@ -390,26 +379,23 @@ class GameService {
     return [];
   }
 
-  // ─── SCORING & RESULTS ─────────────────────────────────────────────────────
+  // ─── RESULT BUILDING ──────────────────────────────────────────────────────────
 
-  GameResult buildResult({
+  GameResult buildFinalResult({
     required GameSession session,
     required int streakDays,
   }) {
-    final config = DifficultyConfig.fromEnum(session.difficulty);
     final totalScore = session.totalScore;
-    final maxScore = session.rounds.length * (100 * config.scoreMultiplier).round();
+    final maxScore = session.rounds.length * 100;
     final xp = (totalScore * 0.1).round().clamp(5, 500);
 
-    final firstRound = session.rounds.isNotEmpty ? session.rounds.first : null;
-
-    final verdict = GameVerdicts.getVerdict(
+    final verdictData = GameVerdicts.getVerdict(
       score: totalScore,
       maxScore: maxScore,
-      cluesUsed: firstRound?.cluesRevealed ?? 0,
-      maxClues: config.maxClues,
-      wrongGuesses: firstRound?.wrongGuesses ?? 0,
-      difficulty: session.difficulty,
+      cluesUsed: (session.avgEvidenceUsed * 10).round(),
+      maxClues: 40,
+      wrongGuesses: session.rounds.fold(0, (s, r) => s + r.wrongGuesses),
+      difficulty: GameDifficulty.medium,
       streakDays: streakDays,
       isSolved: session.solvedCount > 0,
     );
@@ -418,49 +404,51 @@ class GameService {
       challengeType: session.challengeType,
       themeName: session.themeName,
       themeEmoji: session.themeEmoji,
-      difficulty: session.difficulty,
-      guessMode: session.guessMode,
       totalScore: totalScore,
       xpEarned: xp,
-      verdict: verdict,
+      verdict: verdictData,
+      verdictLabel: _verdictLabel(totalScore, session.solvedCount, session.rounds.length),
       playedAt: DateTime.now(),
       streakDays: streakDays,
       isPerfectRun: session.isPerfectRun,
       solvedCount: session.solvedCount,
       totalRounds: session.rounds.length,
-      solvedAtClue: firstRound?.solvedAtClue,
-      movieTitle: firstRound?.movieTitle,
-      posterUrl: firstRound?.posterUrl,
-      directorName: firstRound?.directorName,
-      genre: firstRound?.genre,
-      year: firstRound?.year,
-      rating: firstRound?.rating,
-      interestingFact: firstRound?.interestingFact,
+      avgEvidenceUsed: session.avgEvidenceUsed,
+      bestRoundScore: session.bestRoundScore,
+      fastestSolveMs: session.fastestSolveMs,
+      rounds: List.from(session.rounds),
     );
   }
 
-  // ─── PERSISTENCE ───────────────────────────────────────────────────────────
+  String _verdictLabel(int score, int solved, int total) {
+    final ratio = solved / total;
+    if (ratio == 1.0 && score >= 900) return '🏛️ FILM ARCHIVIST';
+    if (ratio >= 0.9) return '🔥 CINEPHILE INSTINCT';
+    if (ratio >= 0.7) return '🎬 FILM SCHOLAR';
+    if (ratio >= 0.5) return '🍿 MOVIE BUFF';
+    return '📽️ CASUAL VIEWER';
+  }
+
+  // ─── PERSISTENCE ──────────────────────────────────────────────────────────────
 
   Future<void> saveResult(GameResult result) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Update XP
     final currentXp = prefs.getInt('game_total_xp') ?? 0;
     await prefs.setInt('game_total_xp', currentXp + result.xpEarned);
 
-    // Update games played
     final played = prefs.getInt('game_total_played') ?? 0;
     await prefs.setInt('game_total_played', played + 1);
 
-    // Update recently played
-    await _addRecentlyPlayed(result.movieTitle ?? '');
-
-    // Update streak
     await _updateStreak();
 
-    // Save recent theme
     if (result.themeName != null) {
       await _addRecentTheme(result.themeName!);
+    }
+
+    // Mark movies as recently played to avoid repeats
+    for (final round in result.rounds) {
+      await _addRecentlyPlayedId(round.movieId);
     }
 
     debugPrint('GameService: Result saved. XP: ${result.xpEarned}, Score: ${result.totalScore}');
@@ -476,7 +464,7 @@ class GameService {
     return prefs.getInt('game_total_played') ?? 0;
   }
 
-  // ─── STREAK ────────────────────────────────────────────────────────────────
+  // ─── STREAK ───────────────────────────────────────────────────────────────────
 
   Future<int> getStreakDays() async {
     final prefs = await SharedPreferences.getInstance();
@@ -499,16 +487,13 @@ class GameService {
       lastPlayed = map['lastPlayed'] as String?;
     }
 
-    if (lastPlayed == today) {
-      // Already played today — don't increment
-      return;
-    }
+    if (lastPlayed == today) return;
 
     final yesterday = _yesterdayKey();
     if (lastPlayed == yesterday) {
-      days += 1; // Consecutive day
+      days += 1;
     } else {
-      days = 1; // Streak reset
+      days = 1;
     }
 
     await prefs.setString(_streakKey, json.encode({
@@ -527,7 +512,7 @@ class GameService {
     return '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
   }
 
-  // ─── RECENTLY PLAYED ───────────────────────────────────────────────────────
+  // ─── RECENTLY PLAYED ──────────────────────────────────────────────────────────
 
   Future<Set<int>> _getRecentlyPlayedIds() async {
     final prefs = await SharedPreferences.getInstance();
@@ -535,21 +520,12 @@ class GameService {
     return list.map(int.parse).toSet();
   }
 
-  Future<void> _addRecentlyPlayed(String movieTitle) async {
+  Future<void> _addRecentlyPlayedId(int id) async {
     final prefs = await SharedPreferences.getInstance();
-    // We track IDs by scanning the pool
-    final match = quickMixPool.firstWhere(
-      (m) => m['title'] == movieTitle,
-      orElse: () => {},
-    );
-    if (match.isEmpty) return;
-
-    final id = match['id'] as int;
     final list = prefs.getStringList(_recentlyPlayedKey) ?? [];
     list.remove(id.toString());
     list.insert(0, id.toString());
-    // Keep only last 10
-    await prefs.setStringList(_recentlyPlayedKey, list.take(10).toList());
+    await prefs.setStringList(_recentlyPlayedKey, list.take(30).toList());
   }
 
   Future<List<String>> getRecentThemes() async {
@@ -565,7 +541,7 @@ class GameService {
     await prefs.setStringList(_recentThemesKey, list.take(5).toList());
   }
 
-  // ─── PLAYER STATS ──────────────────────────────────────────────────────────
+  // ─── PLAYER STATS ─────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getPlayerStats() async {
     final prefs = await SharedPreferences.getInstance();
@@ -577,17 +553,8 @@ class GameService {
       'xp': xp,
       'played': played,
       'streak': streak,
-      'level': _xpToLevel(xp),
       'levelTitle': _xpToLevelTitle(xp),
     };
-  }
-
-  int _xpToLevel(int xp) {
-    if (xp >= 5000) return 5;
-    if (xp >= 2000) return 4;
-    if (xp >= 750) return 3;
-    if (xp >= 200) return 2;
-    return 1;
   }
 
   String _xpToLevelTitle(int xp) {

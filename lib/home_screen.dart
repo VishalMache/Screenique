@@ -22,6 +22,7 @@ import '../features/experiences/experiences_tab.dart';
 import 'features/news/the_news_screen.dart';
 import 'features/bot/bot_chat_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'recommendation_list_screen.dart';
 import 'widgets/recommendation_carousel.dart';
 import 'widgets/series_recommendation_carousel.dart';
 import 'widgets/theatre_carousel.dart';
@@ -741,7 +742,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
 
             // 4. RECOMMENDATION HUB
-            _buildHubHeader("RECOMMENDATION HUB"),
+            _buildHubHeader("RECOMMENDATION HUB", onTap: () {
+              if (_smartMovieData != null && _smartMovieData!['movies'] != null) {
+                final List<MovieModel> movies = (_smartMovieData!['movies'] as List)
+                    .map((m) => m is MovieModel ? m : MovieModel.fromJson(m))
+                    .toList();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecommendationListScreen(
+                      title: "RECOMMENDATION HUB",
+                      movies: movies,
+                    ),
+                  ),
+                );
+              }
+            }),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 800),
               switchInCurve: Curves.easeOutCubic,
@@ -758,7 +774,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 30),
             // 4. SERIES FOR YOU
-            _buildHubHeader("SERIES FOR YOU"),
+            _buildHubHeader("SERIES FOR YOU", onTap: () {
+              if (_smartSeriesData != null && _smartSeriesData!['movies'] != null) {
+                final List<MovieModel> movies = (_smartSeriesData!['movies'] as List)
+                    .map((m) => m is MovieModel ? m : MovieModel.fromJson(m))
+                    .toList();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecommendationListScreen(
+                      title: "SERIES FOR YOU",
+                      movies: movies,
+                    ),
+                  ),
+                );
+              }
+            }),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 800),
               switchInCurve: Curves.easeOutCubic,
@@ -780,7 +811,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHubHeader(String text) {
+  Widget _buildHubHeader(String text, {VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
@@ -796,21 +827,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               fontFamily: 'Impact',
             ),
           ),
-          Row(
-            children: const [
-              Text(
-                "SEE ALL",
-                style: TextStyle(
-                  color: Color(0xFFB51F24),
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
+          if (onTap != null)
+            GestureDetector(
+              onTap: onTap,
+              child: Row(
+                children: const [
+                  Text(
+                    "SEE ALL",
+                    style: TextStyle(
+                      color: Color(0xFFB51F24),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward, color: Color(0xFFB51F24), size: 14),
+                ],
               ),
-              SizedBox(width: 4),
-              Icon(Icons.arrow_forward, color: Color(0xFFB51F24), size: 14),
-            ],
-          ),
+            )
+          else
+            Row(
+              children: const [
+                Text(
+                  "SEE ALL",
+                  style: TextStyle(
+                    color: Color(0xFFB51F24),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_forward, color: Color(0xFFB51F24), size: 14),
+              ],
+            ),
         ],
       ),
     );
@@ -845,7 +896,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         offset: const Offset(-8, 0),
         child: Image.asset(
           'assets/logo12.png',
-          width: 170,
+          width: 195,
           fit: BoxFit.fitWidth,
         ),
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/game_service.dart';
-import 'game_intro_screen.dart';
+import 'choose_challenge_screen.dart';
 
 class GameHubScreen extends StatefulWidget {
   const GameHubScreen({super.key});
@@ -109,15 +109,13 @@ class _GameHubScreenState extends State<GameHubScreen>
                         _buildSectionLabel('COMING SOON'),
                         const SizedBox(height: 12),
                         _buildComingSoonCard(
-                          title: 'Screenique Trivia',
-                          subtitle: 'Test your cinema knowledge',
-                          emoji: '🧠',
+                          title: 'SCREENIQUE TRIVIA',
+                          icon: Icons.psychology_rounded,
                         ),
                         const SizedBox(height: 12),
                         _buildComingSoonCard(
-                          title: 'Frame Game',
-                          subtitle: 'Identify the movie from a single frame',
-                          emoji: '🖼️',
+                          title: 'FRAME GAME',
+                          icon: Icons.image_rounded,
                         ),
                       ],
                     ),
@@ -136,54 +134,43 @@ class _GameHubScreenState extends State<GameHubScreen>
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Row(
+          const Text(
+            'ARCADE',
+            style: TextStyle(
+              color: Color(0xFFF4F4EC),
+              fontSize: 40,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.0,
+              fontFamily: 'Impact',
+              shadows: [Shadow(color: Color(0xFFD32F2F), blurRadius: 20)],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Icon(Icons.videogame_asset_rounded,
-                  color: Color(0xFFD32F2F), size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                'GAME SECTION',
-                style: TextStyle(
+              Text(
+                '$_xp XP',
+                style: const TextStyle(
                   color: Color(0xFFD32F2F),
-                  fontSize: 11,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              Text(
+                _levelTitle.toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xFF888882),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'CHOOSE YOUR\nARENA.',
-            style: TextStyle(
-              color: Color(0xFFF4F4EC),
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              height: 1.1,
-              letterSpacing: -1.0,
-              fontFamily: 'Impact',
-              shadows: [
-                Shadow(
-                  color: Color(0x80D32F2F),
-                  offset: Offset(0, 4),
-                  blurRadius: 12,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _streak > 0
-                ? '🔥 $_streak day streak · $_xp XP earned'
-                : '$_xp XP earned · $_played games played',
-            style: const TextStyle(
-              color: Color(0xFF888882),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ],
       ),
@@ -191,77 +178,42 @@ class _GameHubScreenState extends State<GameHubScreen>
   }
 
   Widget _buildStatsBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141416).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.3), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD32F2F).withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildHudItem(Icons.local_fire_department_rounded, '$_streak', 'DAY STREAK', const Color(0xFFFF9800)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildHudItem(Icons.sports_esports_rounded, '$_played', 'GAMES PLAYED', const Color(0xFF4CAF50)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHudItem(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141416),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('🏅', _levelTitle.split(' ').last, 'RANK'),
-          _buildStatDivider(),
-          _buildStatItem('🎮', '$_played', 'PLAYED'),
-          _buildStatDivider(),
-          _buildStatItem('⚡', '$_xp', 'XP'),
-          _buildStatDivider(),
-          _buildStatItem('🔥', '$_streak', 'STREAK'),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+              Text(label, style: const TextStyle(color: Color(0xFF575757), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            ],
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String emoji, String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFFF4F4EC),
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF575757),
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.0,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1, 
-      height: 36, 
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF2A2A2A).withOpacity(0.0),
-            const Color(0xFFD32F2F).withOpacity(0.5),
-            const Color(0xFF2A2A2A).withOpacity(0.0),
-          ],
-        ),
       ),
     );
   }
@@ -269,20 +221,14 @@ class _GameHubScreenState extends State<GameHubScreen>
   Widget _buildSectionLabel(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF575757),
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2.0,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(child: Divider(color: Color(0xFF2A2A2A), thickness: 1)),
-        ],
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF575757),
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
+        ),
       ),
     );
   }
@@ -291,167 +237,87 @@ class _GameHubScreenState extends State<GameHubScreen>
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const GameIntroScreen()),
+        MaterialPageRoute(builder: (_) => const ChooseChallengeScreen()),
       ),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
+        height: 220,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2B0A0A), Color(0xFF1A0505), Color(0xFF0F0F0F)],
-          ),
-          border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.8), width: 1.5),
+          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFF141416),
+          border: Border.all(color: const Color(0xFFD32F2F), width: 2),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFD32F2F).withOpacity(0.25),
-              blurRadius: 24,
-              spreadRadius: 2,
-              offset: const Offset(0, 8),
+              color: const Color(0xFFD32F2F).withOpacity(0.3),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Top decorative film strip area
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                color: const Color(0xFF1A0808),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Film reel decorative pattern
-                  Positioned.fill(
-                    child: CustomPaint(painter: _FilmStripPainter()),
-                  ),
-                  // Center content
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFD32F2F).withOpacity(0.15),
-                            border: Border.all(
-                                color: const Color(0xFFD32F2F).withOpacity(0.5),
-                                width: 1.5),
-                          ),
-                          child: const Icon(
-                            Icons.movie_filter_rounded,
-                            color: Color(0xFFD32F2F),
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'THE SCREENIQUE GUESS',
-                          style: TextStyle(
-                            color: Color(0xFFF4F4EC),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.0,
-                            fontFamily: 'Impact',
-                            shadows: [
-                              Shadow(color: Color(0xFFD32F2F), blurRadius: 10)
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Every movie leaves clues.',
-                          style: TextStyle(
-                            color: Color(0xFF888882),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Tag pill
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD32F2F),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        '🎬 MOVIE GUESSING',
-                        style: TextStyle(
-                          color: Color(0xFFF4F4EC),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            // Abstract geometric background pattern
+            Positioned(
+              right: -50,
+              top: -50,
+              child: Icon(
+                Icons.movie_filter_rounded,
+                size: 250,
+                color: const Color(0xFFD32F2F).withOpacity(0.05),
               ),
             ),
-            // Bottom action area
+            // Content
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          '4 GAME MODES',
-                          style: TextStyle(
-                            color: Color(0xFFD32F2F),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Plot • Dialogue • Blur Poster • Cast',
-                          style: TextStyle(
-                            color: Color(0xFF888882),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFD32F2F),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'PLAY NOW',
+                    child: const Text(
+                      'PLAY NOW',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'THE\nSCREENIQUE\nGUESS',
                           style: TextStyle(
-                            color: Color(0xFFF4F4EC),
-                            fontSize: 13,
+                            color: Colors.white,
+                            fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
+                            fontFamily: 'Impact',
+                            height: 1.1,
+                            letterSpacing: 1.0,
                           ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(Icons.sports_esports_rounded,
-                            color: Color(0xFFF4F4EC), size: 16),
-                      ],
-                    ),
+                      ),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD32F2F),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFD32F2F).withOpacity(0.5),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -464,121 +330,34 @@ class _GameHubScreenState extends State<GameHubScreen>
 
   Widget _buildComingSoonCard({
     required String title,
-    required String subtitle,
-    required String emoji,
+    required IconData icon,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: const Color(0xFF141416),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF2A2A2A)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF222222),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
-            ),
-          ),
-          const SizedBox(width: 14),
+          Icon(icon, color: const Color(0xFF575757), size: 32),
+          const SizedBox(width: 20),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF575757),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF3A3A3A),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF575757),
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+              ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF222222),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF333333)),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock_outline, color: Color(0xFF444444), size: 11),
-                SizedBox(width: 4),
-                Text(
-                  'SOON',
-                  style: TextStyle(
-                    color: Color(0xFF444444),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Icon(Icons.lock_rounded, color: Color(0xFF333333), size: 20),
         ],
       ),
     );
   }
-}
-
-// ─── FILM STRIP PAINTER ────────────────────────────────────────────────────────
-class _FilmStripPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF2A0A0A)
-      ..style = PaintingStyle.fill;
-
-    // Draw film perforations along the top and bottom
-    const double holeDiam = 10;
-    const double holeSpacing = 18;
-    const double holeMargin = 10;
-
-    for (double x = holeSpacing; x < size.width; x += holeSpacing * 1.5) {
-      // Top holes
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-              center: Offset(x, holeMargin), width: holeDiam, height: holeDiam),
-          const Radius.circular(2),
-        ),
-        paint,
-      );
-      // Bottom holes
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-              center: Offset(x, size.height - holeMargin),
-              width: holeDiam,
-              height: holeDiam),
-          const Radius.circular(2),
-        ),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_FilmStripPainter _) => false;
 }

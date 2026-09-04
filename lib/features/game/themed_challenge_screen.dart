@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/game_themes_data.dart';
 import '../../models/game_models.dart';
 import '../../services/game_service.dart';
-import 'choose_difficulty_screen.dart';
+import 'game_ready_screen.dart';
 
 class ThemedChallengeScreen extends StatefulWidget {
   const ThemedChallengeScreen({super.key});
@@ -53,7 +53,7 @@ class _ThemedChallengeScreenState extends State<ThemedChallengeScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChooseDifficultyScreen(
+        builder: (_) => GameReadyScreen(
           challengeType: ChallengeType.themed,
           selectedTheme: _selectedTheme,
         ),

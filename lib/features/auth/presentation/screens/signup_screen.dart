@@ -263,7 +263,7 @@ class _SignupScreenState extends State<SignupScreen>
                           children: [
                             Image.asset(
                               'assets/logo11.png',
-                              width: 180, // Reduced size to prevent overflow
+                              width: 205, // Reduced size to prevent overflow
                               fit: BoxFit.contain,
                               alignment: Alignment.centerLeft,
                             ),

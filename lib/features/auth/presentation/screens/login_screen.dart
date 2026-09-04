@@ -323,7 +323,7 @@ class _LoginScreenState extends State<LoginScreen>
                           children: [
                             Image.asset(
                               'assets/logo11.png',
-                              width: 200, // Reduced size to prevent overflow
+                              width: 220, // Reduced size to prevent overflow
                               fit: BoxFit.contain,
                             ),
                             const SizedBox(height: 8),

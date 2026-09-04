@@ -281,7 +281,7 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
         Center(
           child: Image.asset(
             'assets/logo12.png',
-            width: 100,
+            width: 115,
             fit: BoxFit.contain,
             color: Colors.white.withOpacity(0.9),
           ),
@@ -390,7 +390,7 @@ class _InstagramShareDialogState extends State<InstagramShareDialog> {
       child: Center(
         child: Image.asset(
           'assets/logo12.png',
-          width: 100,
+          width: 115,
           fit: BoxFit.contain,
           color: Colors.white,
         ),

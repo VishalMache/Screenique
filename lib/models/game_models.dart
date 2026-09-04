@@ -2,13 +2,40 @@ import 'package:flutter/material.dart';
 
 // ─── ENUMS ────────────────────────────────────────────────────────────────────
 
-enum ChallengeType { quickMix, themed, custom }
+enum ChallengeType { quickMix, themed }
 
+/// Kept for internal TMDB pool selection only — NOT shown to users
 enum GameDifficulty { easy, medium, hard }
 
-enum GuessMode { ultimate, dialogue, blurPoster, castDirector }
+enum EvidenceType { plot, director, cast, dialogue, tagline, year, trivia }
 
-// ─── DIFFICULTY CONFIG ─────────────────────────────────────────────────────────
+// ─── EVIDENCE ─────────────────────────────────────────────────────────────────
+
+class Evidence {
+  final EvidenceType type;
+  final String label;   // e.g. "PLOT", "DIRECTOR", "CAST"
+  final String content;
+
+  const Evidence({
+    required this.type,
+    required this.label,
+    required this.content,
+  });
+
+  String get emoji {
+    switch (type) {
+      case EvidenceType.plot:      return '🎭';
+      case EvidenceType.director:  return '🎬';
+      case EvidenceType.cast:      return '👥';
+      case EvidenceType.dialogue:  return '💬';
+      case EvidenceType.tagline:   return '🔖';
+      case EvidenceType.year:      return '📅';
+      case EvidenceType.trivia:    return '🏆';
+    }
+  }
+}
+
+// ─── DIFFICULTY CONFIG (internal use only) ─────────────────────────────────────
 
 class DifficultyConfig {
   final GameDifficulty difficulty;
@@ -31,6 +58,25 @@ class DifficultyConfig {
     required this.color,
   });
 
+  static const medium = DifficultyConfig(
+    difficulty: GameDifficulty.medium,
+    maxClues: 4,
+    maxAttempts: 3,
+    scoreMultiplier: 1.0,
+    label: 'MEDIUM',
+    description: 'Popular + moderately obscure movies.',
+    emoji: '🎬',
+    color: Color(0xFFFF9800),
+  );
+
+  static DifficultyConfig fromEnum(GameDifficulty d) {
+    switch (d) {
+      case GameDifficulty.easy:   return easy;
+      case GameDifficulty.medium: return medium;
+      case GameDifficulty.hard:   return hard;
+    }
+  }
+
   static const easy = DifficultyConfig(
     difficulty: GameDifficulty.easy,
     maxClues: 5,
@@ -40,17 +86,6 @@ class DifficultyConfig {
     description: 'Mainstream movies. Clues are relatively generous.',
     emoji: '🍿',
     color: Color(0xFF4CAF50),
-  );
-
-  static const medium = DifficultyConfig(
-    difficulty: GameDifficulty.medium,
-    maxClues: 4,
-    maxAttempts: 2,
-    scoreMultiplier: 1.5,
-    label: 'MEDIUM',
-    description: 'Popular + moderately obscure movies.',
-    emoji: '🎬',
-    color: Color(0xFFFF9800),
   );
 
   static const hard = DifficultyConfig(
@@ -63,28 +98,6 @@ class DifficultyConfig {
     emoji: '🎞️',
     color: Color(0xFFD32F2F),
   );
-
-  static DifficultyConfig fromEnum(GameDifficulty d) {
-    switch (d) {
-      case GameDifficulty.easy: return easy;
-      case GameDifficulty.medium: return medium;
-      case GameDifficulty.hard: return hard;
-    }
-  }
-}
-
-// ─── GAME CLUE ─────────────────────────────────────────────────────────────────
-
-class GameClue {
-  final String type;    // 'plot', 'character', 'director', 'cast', 'fact', 'tagline'
-  final String label;   // Display label e.g. "PLOT CLUE"
-  final String content;
-
-  const GameClue({
-    required this.type,
-    required this.label,
-    required this.content,
-  });
 }
 
 // ─── GAME ROUND ─────────────────────────────────────────────────────────────────
@@ -101,18 +114,16 @@ class GameRound {
   final double rating;
   final String? interestingFact;
 
-  // Mode-specific data
-  final List<GameClue> clues;
-  final String? dialogueQuote;
-  final String? dialogueCharacter;
-  final String? dialogueContext;
+  /// The 3–4 pieces of evidence for this round
+  final List<Evidence> evidences;
 
   // Mutable state
-  int cluesRevealed;
+  int evidencesRevealed;   // how many evidences the player has seen
   int wrongGuesses;
   bool isSolved;
   bool isSkipped;
-  int? solvedAtClue; // 1-indexed clue number when solved
+  int? solvedAtEvidence;   // 1-indexed evidence number when solved
+  int? solveTimeMs;        // time from round start to solve in ms
 
   GameRound({
     required this.movieId,
@@ -125,27 +136,24 @@ class GameRound {
     this.year = '',
     this.rating = 0.0,
     this.interestingFact,
-    this.clues = const [],
-    this.dialogueQuote,
-    this.dialogueCharacter,
-    this.dialogueContext,
-    this.cluesRevealed = 0,
+    this.evidences = const [],
+    this.evidencesRevealed = 1,
     this.wrongGuesses = 0,
     this.isSolved = false,
     this.isSkipped = false,
-    this.solvedAtClue,
+    this.solvedAtEvidence,
+    this.solveTimeMs,
   });
 
-  int computeScore(DifficultyConfig config) {
+  /// Score based on which evidence the player solved on.
+  /// 100 → 80 → 60 → 40 → 0, minus 5 per wrong guess
+  int computeScore() {
     if (!isSolved) return 0;
-    const int base = 100;
-    const int cluePenalty = 15;
-    const int wrongPenalty = 10;
-    final int penalty =
-        (cluesRevealed > 1 ? (cluesRevealed - 1) * cluePenalty : 0) +
-        (wrongGuesses * wrongPenalty);
-    final int raw = (base - penalty).clamp(0, base);
-    return (raw * config.scoreMultiplier).round();
+    const baseScores = [100, 80, 60, 40];
+    final evidenceIdx = (solvedAtEvidence ?? 1) - 1;
+    final base = evidenceIdx < baseScores.length ? baseScores[evidenceIdx] : 0;
+    final penalty = wrongGuesses * 5;
+    return (base - penalty).clamp(0, 100);
   }
 }
 
@@ -155,17 +163,13 @@ class GameSession {
   final ChallengeType challengeType;
   final String? themeName;
   final String? themeEmoji;
-  final GameDifficulty difficulty;
-  final GuessMode guessMode;
-  final List<GameRound> rounds;
+  final List<GameRound> rounds; // Always 10
   final DateTime startedAt;
 
   GameSession({
     required this.challengeType,
     this.themeName,
     this.themeEmoji,
-    required this.difficulty,
-    required this.guessMode,
     required this.rounds,
     DateTime? startedAt,
   }) : startedAt = startedAt ?? DateTime.now();
@@ -176,16 +180,32 @@ class GameSession {
   bool get isComplete =>
       rounds.every((r) => r.isSolved || r.isSkipped);
 
-  int get totalScore {
-    final config = DifficultyConfig.fromEnum(difficulty);
-    return rounds.fold(0, (sum, r) => sum + r.computeScore(config));
-  }
+  int get totalScore =>
+      rounds.fold(0, (sum, r) => sum + r.computeScore());
 
   int get solvedCount => rounds.where((r) => r.isSolved).length;
 
   bool get isPerfectRun =>
       rounds.isNotEmpty &&
       rounds.every((r) => r.isSolved && r.wrongGuesses == 0);
+
+  double get avgEvidenceUsed {
+    final solved = rounds.where((r) => r.isSolved && r.solvedAtEvidence != null).toList();
+    if (solved.isEmpty) return 0;
+    return solved.map((r) => r.solvedAtEvidence!).reduce((a, b) => a + b) / solved.length;
+  }
+
+  int get bestRoundScore =>
+      rounds.map((r) => r.computeScore()).fold(0, (a, b) => a > b ? a : b);
+
+  int? get fastestSolveMs {
+    final times = rounds
+        .where((r) => r.isSolved && r.solveTimeMs != null)
+        .map((r) => r.solveTimeMs!)
+        .toList();
+    if (times.isEmpty) return null;
+    return times.reduce((a, b) => a < b ? a : b);
+  }
 }
 
 // ─── GAME RESULT ───────────────────────────────────────────────────────────────
@@ -194,54 +214,46 @@ class GameResult {
   final ChallengeType challengeType;
   final String? themeName;
   final String? themeEmoji;
-  final GameDifficulty difficulty;
-  final GuessMode guessMode;
   final int totalScore;
   final int xpEarned;
   final String verdict;
+  final String verdictLabel; // e.g. "CINEPHILE INSTINCT"
   final DateTime playedAt;
   final int? streakDays;
   final bool isPerfectRun;
   final int solvedCount;
   final int totalRounds;
-  final int? solvedAtClue; // For single-round (Quick Mix)
-  final String? movieTitle;
-  final String? posterUrl;
-  final String? directorName;
-  final String? genre;
-  final String? year;
-  final double? rating;
-  final String? interestingFact;
+
+  // Session-wide stats
+  final double avgEvidenceUsed;
+  final int bestRoundScore;
+  final int? fastestSolveMs;
+
+  // Per-round snapshots (for share card, etc.)
+  final List<GameRound> rounds;
 
   const GameResult({
     required this.challengeType,
     this.themeName,
     this.themeEmoji,
-    required this.difficulty,
-    required this.guessMode,
     required this.totalScore,
     required this.xpEarned,
     required this.verdict,
+    required this.verdictLabel,
     required this.playedAt,
     this.streakDays,
     this.isPerfectRun = false,
     required this.solvedCount,
     required this.totalRounds,
-    this.solvedAtClue,
-    this.movieTitle,
-    this.posterUrl,
-    this.directorName,
-    this.genre,
-    this.year,
-    this.rating,
-    this.interestingFact,
+    this.avgEvidenceUsed = 0,
+    this.bestRoundScore = 0,
+    this.fastestSolveMs,
+    this.rounds = const [],
   });
 
   Map<String, dynamic> toJson() => {
     'challengeType': challengeType.index,
     'themeName': themeName,
-    'difficulty': difficulty.index,
-    'guessMode': guessMode.index,
     'totalScore': totalScore,
     'xpEarned': xpEarned,
     'verdict': verdict,
@@ -250,9 +262,8 @@ class GameResult {
     'isPerfectRun': isPerfectRun,
     'solvedCount': solvedCount,
     'totalRounds': totalRounds,
-    'solvedAtClue': solvedAtClue,
-    'movieTitle': movieTitle,
-    'posterUrl': posterUrl,
+    'avgEvidenceUsed': avgEvidenceUsed,
+    'bestRoundScore': bestRoundScore,
   };
 }
 
