@@ -1491,7 +1491,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               _buildNavIcon(
                 Icons.settings,
-                "SETTING",
+                "SETTINGS",
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(

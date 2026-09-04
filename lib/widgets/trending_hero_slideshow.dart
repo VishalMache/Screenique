@@ -82,7 +82,7 @@ class _TrendingHeroSlideshowState extends State<TrendingHeroSlideshow> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 10),
         child: Container(
           height: 200,
           decoration: BoxDecoration(
@@ -99,14 +99,14 @@ class _TrendingHeroSlideshowState extends State<TrendingHeroSlideshow> {
     if (_slides.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               const Text(
-                "TRENDING STUFF",
+                "TRENDING NOW",
                 style: TextStyle(
                   color: Color(0xFF575757),
                   fontSize: 11,
