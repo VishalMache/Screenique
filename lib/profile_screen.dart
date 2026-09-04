@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../services/auth_service.dart';
 import '../../services/watchlist_service.dart';
 import '../../models/movie_model.dart';
 import 'follow_list_screen.dart';
+import 'settings_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  static const Color noirCrimson = Color(0xFF111111);
-  static const Color seriesBlue = Color(0xFF111111);
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  static const Color bgColor = Color(0xFFF5F3EB);
+  static const Color textColor = Color(0xFF111111);
+  static const Color redAccent = Color(0xFFD32F2F);
+  
+  int _selectedTab = 0; // 0: Spotlight, 1: Reviews
 
   @override
   Widget build(BuildContext context) {
@@ -19,30 +27,49 @@ class ProfileScreen extends StatelessWidget {
 
     if (uid == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF4F4EC),
+        backgroundColor: bgColor,
         body: Center(child: Text("Authentication required.")),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4EC),
-      extendBodyBehindAppBar: true,
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111111), size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: textColor, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "DIRECTOR'S DOSSIER",
-          style: TextStyle(
-              letterSpacing: 4,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF111111)),
+        title: Column(
+          children: [
+            const Text(
+              "MY PROFILE",
+              style: TextStyle(
+                letterSpacing: 4, 
+                fontSize: 14, 
+                fontWeight: FontWeight.w900, 
+                color: textColor,
+                fontFamily: 'Inter',
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              "A CINEPHILE'S SPACE",
+              style: TextStyle(
+                fontSize: 9, 
+                color: redAccent,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+                fontFamily: 'Inter',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(width: 30, height: 2, color: redAccent),
+          ],
         ),
+        toolbarHeight: 80,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -53,15 +80,32 @@ class ProfileScreen extends StatelessWidget {
         builder: (context, snapshot) {
           final docs = snapshot.data?.docs ?? [];
           
-          final int movieCount = docs.where((d) => d['status'] == 'watched' && (d.data() as Map)['isTvShow'] != true).length;
-          final int seriesCount = docs.where((d) => d['status'] == 'watched' && (d.data() as Map)['isTvShow'] == true).length;
+          final watchedDocs = docs.where((d) => d['status'] == 'watched').toList();
+          final int movieCount = watchedDocs.where((d) => (d.data() as Map)['isTvShow'] != true).length;
+          final int seriesCount = watchedDocs.where((d) => (d.data() as Map)['isTvShow'] == true).length;
           final int totalWatched = movieCount + seriesCount;
+
+          final reviewDocs = watchedDocs.where((d) {
+            final data = d.data() as Map<String, dynamic>;
+            return data['personalNote'] != null && data['personalNote'].toString().trim().isNotEmpty;
+          }).toList();
+
+          // Sort watched docs by timestamp descending for Recent Activity
+          watchedDocs.sort((a, b) {
+            final tA = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+            final tB = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+            if (tA == null && tB == null) return 0;
+            if (tA == null) return 1;
+            if (tB == null) return -1;
+            return tB.compareTo(tA);
+          });
+          final recentDocs = watchedDocs.take(5).toList();
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
-                const SizedBox(height: 140),
+                const SizedBox(height: 4),
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
                   builder: (context, userSnapshot) {
@@ -69,23 +113,31 @@ class ProfileScreen extends StatelessWidget {
                     final username = userData?['username'] ?? '';
                     final followers = userData?['followersCount'] ?? 0;
                     final following = userData?['followingCount'] ?? 0;
-                    return _buildProfileHeader(context, uid, user, username, followers, following, totalWatched);
+                    
+                    return Column(
+                      children: [
+                        _buildHeroHeader(user, username, totalWatched),
+                        const SizedBox(height: 16),
+                        _buildStatsBar(movieCount, seriesCount),
+                        const SizedBox(height: 16),
+                        _buildFollowersRow(uid, followers, following),
+                        const SizedBox(height: 16),
+                        _buildCustomTabBar(),
+                        const SizedBox(height: 12),
+                        
+                        // Tab Content
+                        if (_selectedTab == 0) _buildSpotlightTab(uid),
+                        if (_selectedTab == 1) _buildReviewsTab(reviewDocs),
+                        
+                        const SizedBox(height: 24),
+                        _buildProfileCompleteness(userData),
+                        const SizedBox(height: 20),
+                        if (recentDocs.isNotEmpty) _buildRecentActivity(recentDocs),
+                        const SizedBox(height: 40),
+                      ],
+                    );
                   },
                 ),
-                const SizedBox(height: 40),
-                
-                _buildStatSection(movieCount, seriesCount, totalWatched),
-                const SizedBox(height: 40),
-
-                _buildSpotlightSection(context, uid),
-
-                const SizedBox(height: 40),
-                _buildArchivalProgress(uid),
-                const SizedBox(height: 40),
-
-                _buildMenuSection(context, user),
-                
-                const SizedBox(height: 60),
               ],
             ),
           );
@@ -94,53 +146,144 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, String uid, User? user, String username, int followers, int following, int watchedCount) {
+  Widget _buildHeroHeader(User? user, String username, int totalWatched) {
     final String photoUrl = user?.photoURL ??
         'https://ui-avatars.com/api/?name=${user?.email ?? "User"}&background=111111&color=f4f4ec';
 
-    return Column(
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: noirCrimson, width: 2),
-          ),
-          child: CircleAvatar(
-            radius: 55,
-            backgroundColor: const Color(0xFFF4F4EC),
-            backgroundImage: NetworkImage(photoUrl),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          (user?.displayName ?? user?.email?.split('@')[0] ?? "Cinema Buff").toUpperCase(),
-          style: const TextStyle(
-              color: Color(0xFF111111), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1.0, fontFamily: 'Impact', height: 1.0),
-        ),
-        if (username.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            "@$username",
-            style: const TextStyle(
-                color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1),
-          ),
-        ],
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Column(
           children: [
-            _buildFollowCount("FOLLOWERS", followers, () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'followers')));
-            }),
-            const SizedBox(width: 24),
-            _buildFollowCount("FOLLOWING", following, () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'following')));
-            }),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: textColor, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 46,
+                backgroundColor: Colors.grey[300],
+                backgroundImage: NetworkImage(photoUrl),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              user?.displayName ?? "Cinema Buff",
+              style: const TextStyle(
+                color: textColor, 
+                fontSize: 22, 
+                fontWeight: FontWeight.bold, 
+                fontFamily: 'Inter',
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              "@$username",
+              style: TextStyle(
+                color: textColor.withOpacity(0.6), 
+                fontSize: 12, 
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            _buildRankBadge(totalWatched),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+              icon: const Icon(Icons.edit_outlined, size: 14, color: textColor),
+              label: const Text("Edit Profile", style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: textColor, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildRankBadge(watchedCount),
+      ],
+    );
+  }
+
+  Widget _buildRankBadge(int count) {
+    final String title = ArchiveRank.getTitle(count);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEAEA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.stars_rounded, color: redAccent, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              color: redAccent, 
+              fontSize: 9, 
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter'
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsBar(int movieCount, int seriesCount) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _statItem(Icons.movie_creation_outlined, "Films Watched", movieCount.toString()),
+          Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.2)),
+          _statItem(Icons.tv_rounded, "Series Watched", seriesCount.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _statItem(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: textColor),
+        const SizedBox(height: 6),
+        Text(value, style: const TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 9, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+      ],
+    );
+  }
+
+  Widget _buildFollowersRow(String uid, int followers, int following) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildFollowCount("Followers", followers, () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'followers')));
+        }),
+        const SizedBox(width: 24),
+        Container(width: 1, height: 20, color: Colors.grey.withOpacity(0.3)),
+        const SizedBox(width: 24),
+        _buildFollowCount("Following", following, () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(uid: uid, listType: 'following')));
+        }),
       ],
     );
   }
@@ -151,90 +294,97 @@ class ProfileScreen extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Column(
         children: [
-        Text(
-          count.toString(),
-          style: const TextStyle(
-              color: Color(0xFF111111), fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-              color: Color(0xFF111111), fontSize: 9, letterSpacing: 1, fontWeight: FontWeight.bold),
-        ),
-      ],
-      ),
-    );
-  }
-
-  Widget _buildStatSection(int movieCount, int seriesCount, int totalWatched) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F4EC),
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: const Color(0xFF111111), width: 2),
-        boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _statItem("FILMS", movieCount.toString(), noirCrimson),
-          Container(width: 2, height: 30, color: const Color(0xFF111111)),
-          _statItem("SERIES", seriesCount.toString(), seriesBlue),
-          Container(width: 2, height: 30, color: const Color(0xFF111111)),
-          _statItem("RANK", ArchiveRank.getTitle(totalWatched).split(' ').last, const Color(0xFF111111)),
+          Text(
+            count.toString(),
+            style: const TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Inter'),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statItem(String label, String value, Color accent) {
+  Widget _buildCustomTabBar() {
     return Column(
       children: [
-        Text(value,
-            style: TextStyle(
-                color: accent, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-        const SizedBox(height: 6),
-        Text(label,
-            style: const TextStyle(
-                color: Color(0xFF111111), fontSize: 8, letterSpacing: 1, fontWeight: FontWeight.bold)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildTabItem("Spotlight", 0),
+            _buildTabItem("Reviews", 1),
+          ],
+        ),
+        Container(
+          height: 1,
+          width: double.infinity,
+          color: Colors.grey.withOpacity(0.2),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+        ),
       ],
     );
   }
 
-  Widget _buildSpotlightSection(BuildContext context, String? uid) {
+  Widget _buildTabItem(String title, int index) {
+    final isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? redAccent : textColor.withOpacity(0.5),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 12,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 2,
+            width: 80,
+            color: isSelected ? redAccent : Colors.transparent,
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpotlightTab(String uid) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("DIRECTOR'S SPOTLIGHT",
-                  style: TextStyle(
-                      color: Color(0xFF111111),
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3,
-                      fontSize: 10)),
+              const Icon(Icons.campaign_rounded, size: 18, color: textColor),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Spotlight", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter')),
+                    Text("Movies that define your cinematic taste", style: TextStyle(color: Colors.black54, fontSize: 10, fontFamily: 'Inter')),
+                  ],
+                ),
+              ),
               IconButton(
-                onPressed: () => _showEditSpotlight(context, uid!),
-                icon: const Icon(Icons.tune_rounded, color: Color(0xFF111111), size: 18),
+                onPressed: () => _showEditSpotlight(context, uid),
+                icon: const Icon(Icons.edit_square, color: textColor, size: 16),
               )
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 160,
+          height: 180,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .collection('top_five')
-                .snapshots(),
+            stream: FirebaseFirestore.instance.collection('users').doc(uid).collection('top_five').snapshots(),
             builder: (context, snapshot) {
               final docs = snapshot.data?.docs ?? [];
               if (docs.isEmpty) return _buildEmptySpotlight();
@@ -242,40 +392,33 @@ class ProfileScreen extends StatelessWidget {
               return ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(left: 20),
+                padding: const EdgeInsets.only(left: 24),
                 itemCount: docs.length,
                 itemBuilder: (context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  final movie = MovieModel.fromJson(data);
-                  return Stack(
-                    children: [
-                      Container(
-                        width: 105,
-                        margin: const EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: const Color(0xFF111111), width: 2),
-                          boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: Image.network(
-                            movie.posterPath, 
-                            fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => Container(color: const Color(0xFF111111)),
+                  final movie = MovieModel.fromJson(docs[index].data() as Map<String, dynamic>);
+                  return Container(
+                    width: 120,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              movie.posterPath, 
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(color: Colors.grey[300]),
+                            ),
                           ),
                         ),
-                      ),
-                      if (movie.isTvShow)
-                        Positioned(
-                          top: 8, left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(color: const Color(0xFF111111), borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xFFF4F4EC))),
-                            child: const Icon(Icons.tv, color: Color(0xFFF4F4EC), size: 8),
-                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          movie.releaseDate.split('-').first,
+                          style: const TextStyle(color: Colors.black54, fontSize: 9, fontFamily: 'Inter', fontWeight: FontWeight.bold),
                         ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               );
@@ -286,89 +429,221 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildArchivalProgress(String? uid) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+  Widget _buildEmptySpotlight() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: const Center(
+        child: Text("NO MEDIA PINNED", style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+      ),
+    );
+  }
+
+  Widget _buildReviewsTab(List<DocumentSnapshot> reviewDocs) {
+    if (reviewDocs.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(
+          child: Text("No reviews yet. Add a personal note to a movie you've watched!", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: reviewDocs.length,
+      itemBuilder: (context, index) {
+        final data = reviewDocs[index].data() as Map<String, dynamic>;
+        final movie = MovieModel.fromJson(data);
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(movie.posterPath, width: 50, height: 75, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(width: 50, height: 75, color: Colors.grey)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(movie.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter', color: textColor)),
+                    const SizedBox(height: 4),
+                    Text(
+                      "\"${movie.personalNote}\"",
+                      style: TextStyle(color: textColor.withOpacity(0.8), fontSize: 11, fontStyle: FontStyle.italic, fontFamily: 'Georgia'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileCompleteness(Map<String, dynamic>? userData) {
+    int score = 0;
+    if (userData != null) {
+      if ((userData['name'] ?? '').toString().isNotEmpty) score++;
+      if ((userData['username'] ?? '').toString().isNotEmpty) score++;
+      if ((userData['bio'] ?? '').toString().length > 10) score++;
+      if ((userData['followersCount'] ?? 0) > 0) score++;
+      if ((userData['followingCount'] ?? 0) > 0) score++;
+    }
+    final double progress = score / 5.0;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("ARCHIVAL STABILITY", style: TextStyle(color: Color(0xFF111111), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 15),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFF111111), width: 2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: const LinearProgressIndicator(
-              value: 0.85, 
-              backgroundColor: Color(0xFFF4F4EC),
-              color: noirCrimson,
-              minHeight: 4,
+          Row(
+            children: [
+              const Icon(Icons.track_changes_rounded, color: redAccent, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Profile Completeness", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter')),
+                    Text(
+                      progress == 1.0 ? "Your profile looks great!" : "Complete your profile to get a better experience", 
+                      style: const TextStyle(color: Colors.black54, fontSize: 10, fontFamily: 'Inter')
+                    ),
+                  ],
+                ),
+              ),
+              Text("${(progress * 100).toInt()}%", style: const TextStyle(color: redAccent, fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Inter')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey.withOpacity(0.2),
+              color: redAccent,
+              minHeight: 8,
             ),
           ),
+          if (progress == 1.0) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEAEA),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.verified, color: redAccent, size: 16),
+                  SizedBox(width: 8),
+                  Text("Keep sharing your love for cinema.", style: TextStyle(color: redAccent, fontSize: 11, fontWeight: FontWeight.w600, fontFamily: 'Inter')),
+                ],
+              ),
+            ),
+          ]
         ],
       ),
     );
   }
 
-  Widget _buildMenuSection(BuildContext context, User? user) {
+  Widget _buildRecentActivity(List<DocumentSnapshot> recentDocs) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMenuTile(Icons.edit_document, "REVISE DISPLAY NAME", () => _showEditNameDialog(context, user)),
-        _buildMenuTile(Icons.restart_alt_rounded, "RESET MEDIA JOURNEY", () => _showResetJourneyDialog(context), isDestructive: true),
-        _buildMenuTile(Icons.power_settings_new_rounded, "TERMINATE SESSION", () => _showSignOutDialog(context), isDestructive: true),
-      ],
-    );
-  }
-
-  Widget _buildMenuTile(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 4),
-      leading: Icon(icon, color: isDestructive ? noirCrimson : const Color(0xFF111111), size: 20),
-      title: Text(title,
-          style: TextStyle(
-              color: isDestructive ? noirCrimson : const Color(0xFF111111),
-              fontSize: 11,
-              letterSpacing: 2,
-              fontWeight: FontWeight.bold)),
-      trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF111111), size: 12),
-    );
-  }
-
-  // --- DIALOGS ---
-
-  void _showEditNameDialog(BuildContext context, User? user) {
-    final controller = TextEditingController(text: user?.displayName);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFFF4F4EC),
-        shape: const RoundedRectangleBorder(side: BorderSide(color: Color(0xFF111111), width: 2)),
-        title: const Text("Archive Authority", style: TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Color(0xFF111111)),
-          decoration: const InputDecoration(
-            hintText: "Enter your handle",
-            hintStyle: TextStyle(color: Color(0xFF454545)),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: noirCrimson, width: 2)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: noirCrimson, width: 2)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: const [
+              Icon(Icons.show_chart_rounded, size: 18, color: textColor),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Recent Activity", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter')),
+                    Text("Your latest updates on Screenique", style: TextStyle(color: Colors.black54, fontSize: 10, fontFamily: 'Inter')),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Color(0xFF111111)))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: noirCrimson, foregroundColor: const Color(0xFFF4F4EC)),
-            onPressed: () async {
-              await WatchlistService().updateDisplayName(controller.text);
-              if (context.mounted) Navigator.pop(context);
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 160,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(left: 24),
+            itemCount: recentDocs.length,
+            itemBuilder: (context, index) {
+              final data = recentDocs[index].data() as Map<String, dynamic>;
+              final movie = MovieModel.fromJson(data);
+              
+              String timeAgo = "recently";
+              if (data['timestamp'] != null) {
+                final diff = DateTime.now().difference((data['timestamp'] as Timestamp).toDate());
+                if (diff.inDays > 0) timeAgo = "${diff.inDays}d ago";
+                else if (diff.inHours > 0) timeAgo = "${diff.inHours}h ago";
+                else timeAgo = "just now";
+              }
+
+              return Container(
+                width: 90,
+                margin: const EdgeInsets.only(right: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          movie.posterPath, 
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => Container(color: Colors.grey[300]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Watched · $timeAgo",
+                      style: const TextStyle(color: Colors.black54, fontSize: 9, fontFamily: 'Inter', fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
             },
-            child: const Text("SAVE", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -380,17 +655,16 @@ class ProfileScreen extends StatelessWidget {
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
         decoration: const BoxDecoration(
-          color: Color(0xFFF4F4EC),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(2)),
-          border: Border(top: BorderSide(color: Color(0xFF111111), width: 2)),
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFF111111), borderRadius: BorderRadius.circular(2))),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
             const Padding(
               padding: EdgeInsets.all(20.0),
-              child: Text("REVISE SPOTLIGHT", style: TextStyle(color: noirCrimson, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              child: Text("Edit Spotlight", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Inter')),
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
@@ -403,23 +677,21 @@ class ProfileScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final movie = MovieModel.fromJson(docs[index].data() as Map<String, dynamic>);
                       return ListTile(
-                        leading: Container(
-                          decoration: BoxDecoration(border: Border.all(color: const Color(0xFF111111), width: 1)),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2), 
-                            child: Image.network(
-                              movie.posterPath, 
-                              width: 40, 
-                              height: 60, 
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => Container(width: 40, height: 60, color: const Color(0xFF111111)),
-                            )
-                          ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(4), 
+                          child: Image.network(
+                            movie.posterPath, 
+                            width: 40, 
+                            height: 60, 
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => Container(width: 40, height: 60, color: Colors.grey),
+                          )
                         ),
-                        title: Text(movie.title.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.bold)),
-                        subtitle: Text(movie.isTvShow ? "SERIES" : "FILM", style: TextStyle(color: movie.isTvShow ? const Color(0xFF111111) : const Color(0xFF454545), fontSize: 8)),
+                        title: Text(movie.title, style: const TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+                        subtitle: Text(movie.isTvShow ? "Series" : "Film", style: const TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'Inter')),
                         trailing: IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, color: noirCrimson, size: 20),
+                          icon: const Icon(Icons.remove_circle_outline, color: redAccent, size: 20),
                           onPressed: () => WatchlistService().unpinFromTopFive(movie.id),
                         ),
                       );
@@ -430,98 +702,6 @@ class ProfileScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showResetJourneyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFFF4F4EC),
-        shape: const RoundedRectangleBorder(side: BorderSide(color: Color(0xFF111111), width: 2)),
-        title: const Text("PURGE ALL DATA?", style: TextStyle(color: noirCrimson, fontWeight: FontWeight.bold)),
-        content: const Text("This will wipe your films, series, and spotlight entries. This cannot be undone.", 
-          style: TextStyle(color: Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.w500)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Color(0xFF111111)))),
-          TextButton(
-            onPressed: () async {
-              await WatchlistService().resetCinemaJourney();
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text("TERMINATE DATA", style: TextStyle(color: noirCrimson)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSignOutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFFF4F4EC),
-        shape: const RoundedRectangleBorder(side: BorderSide(color: Color(0xFF111111), width: 2)),
-        title: const Text("Sign Out", style: TextStyle(color: Color(0xFF111111), fontWeight: FontWeight.bold)),
-        content: const Text("Terminate the current session?", style: TextStyle(color: Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.w500)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Color(0xFF111111)))),
-          TextButton(
-            onPressed: () {
-              AuthService().signOut();
-              Navigator.pop(context);
-            },
-            child: const Text("SIGN OUT", style: TextStyle(color: noirCrimson)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptySpotlight() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F4EC),
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: const Color(0xFF111111), width: 2),
-        boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
-      ),
-      child: const Center(
-        child: Text("NO MEDIA PINNED", style: TextStyle(color: Color(0xFF111111), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  // UPDATED: Now accepts 'count' to use ArchiveRank logic
-  Widget _buildRankBadge(int count) {
-    final String title = ArchiveRank.getTitle(count);
-    final Color color = const Color(0xFF111111);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F4EC),
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: color, width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.verified_outlined, color: color, size: 12),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              color: color, 
-              fontSize: 9, 
-              letterSpacing: 2, 
-              fontWeight: FontWeight.bold
-            ),
-          ),
-        ],
       ),
     );
   }
