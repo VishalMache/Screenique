@@ -726,6 +726,21 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     );
   }
 
+  String _formatCurrency(dynamic amount) {
+    if (amount == null) return 'N/A';
+    int val = amount is int ? amount : int.tryParse(amount.toString()) ?? 0;
+    if (val <= 0) return 'N/A';
+
+    if (val >= 1000000) {
+      double m = val / 1000000;
+      return '\$${m == m.truncateToDouble() ? m.toStringAsFixed(0) : m.toStringAsFixed(1)}M';
+    } else if (val >= 1000) {
+      double k = val / 1000;
+      return '\$${k == k.truncateToDouble() ? k.toStringAsFixed(0) : k.toStringAsFixed(1)}K';
+    }
+    return '\$$val';
+  }
+
   Widget _buildTechnicalManifest(Color accent) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -779,12 +794,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             children: [
               Expanded(
                 child: !_movie.isTvShow
-                    ? _buildSpecItem(Icons.monetization_on_outlined, "BUDGET", _fullDetails?['budget'] != null && _fullDetails!['budget'] > 0 ? "Set" : "Unset")
+                    ? _buildSpecItem(Icons.monetization_on_outlined, "BUDGET", _formatCurrency(_fullDetails?['budget']))
                     : _buildSpecItem(Icons.category, "TYPE", _fullDetails?['type'] ?? 'N/A'),
               ),
               Expanded(
                 child: !_movie.isTvShow
-                    ? _buildSpecItem(Icons.bar_chart, "REVENUE", _fullDetails?['revenue'] != null && _fullDetails!['revenue'] > 0 ? "Set" : "Unset")
+                    ? _buildSpecItem(Icons.bar_chart, "REVENUE", _formatCurrency(_fullDetails?['revenue']))
                     : _buildSpecItem(Icons.bar_chart, "POPULARITY", "${_fullDetails?['popularity']?.toStringAsFixed(0) ?? 'N/A'}"),
               ),
             ],

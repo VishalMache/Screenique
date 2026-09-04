@@ -249,29 +249,36 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF15181E),
+              color: Color(0xFFF4F4EC),
               borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+              border: Border(top: BorderSide(color: Color(0xFF111111), width: 3.0)),
             ),
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFF111111), borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 20),
-                const Text("TEXT TRANSMISSION", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 2)),
+                const Text("TEXT TRANSMISSION", style: TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 2)),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _reasonController,
-                  maxLines: 4,
-                  maxLength: 280,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: "What's on your cinematic mind?",
-                    hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
-                    filled: true,
-                    fillColor: const Color(0xFF222222),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFF111111), width: 2.0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextField(
+                    controller: _reasonController,
+                    maxLines: 4,
+                    maxLength: 280,
+                    style: const TextStyle(color: Color(0xFF111111), fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: "What's on your cinematic mind?",
+                      hintStyle: TextStyle(color: Color(0xFF888888), fontSize: 14),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(12),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -728,66 +735,80 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           : "Unknown";
           
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           decoration: const BoxDecoration(
-            color: Color(0xFFF4F4EC),
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-            border: Border(top: BorderSide(color: Color(0xFF111111), width: 2)),
+            color: Colors.white,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE0E0E0), borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
               const Text(
                 "POST METRICS",
-                style: TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 2),
+                style: TextStyle(color: Color(0xFF111111), fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1.5),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF454545), size: 24),
-                      const SizedBox(width: 12),
-                      const Text("Total Views", style: TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  Text(viewCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const SizedBox(height: 16),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  Navigator.pop(context); // close bottom sheet
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => PostLikesScreen(likedByUids: likedBy)));
-                },
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F9F4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE0E0D8)),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.favorite_rounded, color: Color(0xFFD32F2F), size: 24),
+                        const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF666666), size: 22),
                         const SizedBox(width: 12),
-                        const Text("Total Likes", style: TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold)),
+                        const Text("Total Views", style: TextStyle(color: Color(0xFF111111), fontSize: 15, fontWeight: FontWeight.w600)),
                       ],
                     ),
-                    Row(
-                      children: [
-                        Text(likeCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF454545), size: 14),
-                      ],
-                    ),
+                    Text(viewCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.w900)),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              const Divider(color: Color(0xFF111111), thickness: 2),
-              const SizedBox(height: 16),
-              Text("Posted: $timeString", style: const TextStyle(color: Color(0xFF454545), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => PostLikesScreen(likedByUids: likedBy)));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9F9F4),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE0E0D8)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.favorite_rounded, color: Color(0xFFD32F2F), size: 22),
+                          const SizedBox(width: 12),
+                          const Text("Total Likes", style: TextStyle(color: Color(0xFF111111), fontSize: 15, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(likeCount.toString(), style: const TextStyle(color: Color(0xFF111111), fontSize: 16, fontWeight: FontWeight.w900)),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF888888), size: 14),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text("Posted: $timeString", style: const TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
             ],
           ),
@@ -825,15 +846,18 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 ),
               );
             },
-            child: Row(
-              children: [
-                const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white54, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  commentCount.toString(),
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF666666), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    commentCount.toString(),
+                    style: const TextStyle(color: Color(0xFF666666), fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ),
           
@@ -848,15 +872,18 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Transmission Reposted!"), backgroundColor: Color(0xFFD32F2F)));
               }
             },
-            child: Row(
-              children: [
-                const Icon(Icons.repeat_rounded, color: Colors.white54, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  repostCount > 0 ? repostCount.toString() : '',
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.repeat_rounded, color: Color(0xFF666666), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    repostCount > 0 ? repostCount.toString() : '',
+                    style: const TextStyle(color: Color(0xFF666666), fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -869,22 +896,25 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                 await _watchlistService.toggleBroadcastLike(docId, currentUserId, isLiked);
               }
             },
-            child: Row(
-              children: [
-                Icon(
-                  isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isLiked ? const Color(0xFFD32F2F) : Colors.white54,
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  likeCount.toString(),
-                  style: TextStyle(
-                    color: isLiked ? const Color(0xFFD32F2F) : Colors.white54,
-                    fontSize: 13,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF666666),
+                    size: 18,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Text(
+                    likeCount.toString(),
+                    style: TextStyle(
+                      color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF666666),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -892,29 +922,32 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: isOwner ? () => _showAnalyticsBottomSheet(viewCount, likeCount, timestamp, likedBy) : null,
-            child: Row(
-              children: [
-                const Icon(Icons.bar_chart_rounded, color: Colors.white54, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  viewCount.toString(),
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.bar_chart_rounded, color: Color(0xFF666666), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    viewCount.toString(),
+                    style: const TextStyle(color: Color(0xFF666666), fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Share / More
+          // Share / More / Bookmark
           isOwner
               ? IconButton(
                   onPressed: () => _confirmBroadcastDeletion(docId),
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white54, size: 18),
+                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF666666), size: 18),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 )
               : IconButton(
                   onPressed: () => _showReportDialog(docId),
-                  icon: const Icon(Icons.ios_share_rounded, color: Colors.white54, size: 18),
+                  icon: const Icon(Icons.bookmark_border_rounded, color: Color(0xFF666666), size: 18),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -1140,18 +1173,65 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
   }
 
 
+  Widget _buildBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD32F2F), Color(0xFF8B0000)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD32F2F).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: const [
+          Text(
+            "GOOD MOVIES\nBETTER CONVERSATIONS",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2.0,
+              height: 1.3,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Share • Discover • Connect",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0A),
+        backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF111111), size: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -1161,7 +1241,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
             const Text(
               "COMMUNITY SPACE",
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF111111),
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
@@ -1194,7 +1274,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search_rounded, color: Colors.white, size: 24),
+            icon: const Icon(Icons.search_rounded, color: Color(0xFF111111), size: 24),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const UserSearchScreen()));
             },
@@ -1204,7 +1284,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-            color: const Color(0xFF222222),
+            color: const Color(0xFFE0E0E0),
             height: 1,
           ),
         ),
@@ -1224,11 +1304,11 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.podcasts_rounded, color: Color(0xFF454545), size: 48),
+                  Icon(Icons.podcasts_rounded, color: Color(0xFF888888), size: 48),
                   SizedBox(height: 12),
                   Text(
                     "COMMUNITY FEED IS EMPTY",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 13, fontFamily: 'Impact'),
+                    style: TextStyle(color: Color(0xFF111111), fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 13, fontFamily: 'Impact'),
                   ),
                   SizedBox(height: 4),
                   Text(
@@ -1245,9 +1325,12 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
             physics: const BouncingScrollPhysics(),
-            itemCount: docs.length,
+            itemCount: docs.length + 1, // +1 for the banner
             itemBuilder: (context, index) {
-              final doc = docs[index];
+              if (index == 0) {
+                return _buildBanner();
+              }
+              final doc = docs[index - 1];
               final data = doc.data() as Map<String, dynamic>;
               final bool isOwner = currentUserId == data['senderId'];
               final String docId = doc.id;
@@ -1323,23 +1406,27 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
 
     if (type == 'movie' || type == 'song') {
       final movie = MovieModel.fromJson(data);
-      embeddedCard = Container(
-        margin: const EdgeInsets.only(top: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF15181E),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      embeddedCard = GestureDetector(
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => MovieDetailsScreen(movie: movie)));
+        },
+        child: Container(
+          margin: const EdgeInsets.only(top: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             ClipRRect(
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
               child: Image.network(
                 movie.posterPath.replaceAll('image.tmdb.org', 'images.tmdb.org'),
                 width: 90,
                 height: 135,
                 fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(width: 90, height: 135, color: const Color(0xFF222222)),
+                errorBuilder: (c, e, s) => Container(width: 90, height: 135, color: const Color(0xFFDDDDDD)),
               ),
             ),
             Expanded(
@@ -1352,27 +1439,28 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                       movie.title.toUpperCase(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                      style: const TextStyle(color: Color(0xFF111111), fontSize: 15, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "${movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate} • ${movie.isTvShow ? 'TV Series' : 'Movie'}",
-                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                      "${movie.isTvShow ? 'TV Series' : 'Movie'} • ${movie.releaseDate.contains('-') ? movie.releaseDate.split('-').first : movie.releaseDate}",
+                      style: const TextStyle(color: Color(0xFF666666), fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
+                    // Display genres instead of overview if possible, else just overview
                     Text(
                       movie.overview ?? "No description available.",
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
+                      style: const TextStyle(color: Color(0xFF444444), fontSize: 11, height: 1.4),
                     ),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
                       child: Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFFD32F2F).withOpacity(0.2), shape: BoxShape.circle),
-                        child: const Icon(Icons.play_arrow_rounded, color: Color(0xFFD32F2F), size: 20),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.chevron_right_rounded, color: Color(0xFF111111), size: 20),
                       ),
                     ),
                   ],
@@ -1381,7 +1469,7 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
             ),
           ],
         ),
-      );
+      ));
     } else if (type == 'playlist') {
       final playlistName = data['playlistName'] ?? 'Playlist';
       final posterPaths = List<String>.from(data['posterPaths'] ?? []);
@@ -1391,14 +1479,14 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         child: Container(
           margin: const EdgeInsets.only(top: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF15181E),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
                 child: SizedBox(
                   height: 100,
                   child: Row(
@@ -1411,11 +1499,11 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                             Image.network(
                               posterPaths[i].replaceAll('image.tmdb.org', 'images.tmdb.org'),
                               fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => Container(color: const Color(0xFF222222)),
+                              errorBuilder: (c, e, s) => Container(color: const Color(0xFFDDDDDD)),
                             ),
                             if (i == 3 && posterPaths.length > 4)
                               Container(
-                                color: Colors.black.withOpacity(0.7),
+                                color: Colors.black.withOpacity(0.6),
                                 child: Center(
                                   child: Text(
                                     "+${posterPaths.length - 3}\nMORE",
@@ -1437,8 +1525,8 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: const Color(0xFFD32F2F).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.collections_bookmark_rounded, color: Color(0xFFD32F2F), size: 20),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.collections_bookmark_rounded, color: Color(0xFF111111), size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1449,20 +1537,17 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                             playlistName.toUpperCase(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                            style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             "${titles.length} titles",
-                            style: const TextStyle(color: Colors.white54, fontSize: 11),
+                            style: const TextStyle(color: Color(0xFF666666), fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
-                    const Text(
-                      "VIEW",
-                      style: TextStyle(color: Color(0xFFD32F2F), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
-                    ),
+                    const Icon(Icons.chevron_right_rounded, color: Color(0xFF111111), size: 20),
                   ],
                 ),
               ),
@@ -1485,16 +1570,16 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
         child: Container(
           margin: const EdgeInsets.only(top: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF15181E),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
                 child: posterPath.isNotEmpty 
-                  ? Image.network(posterPath, width: 90, height: 100, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(width: 90, height: 100, color: const Color(0xFF222222)))
-                  : Container(width: 90, height: 100, color: const Color(0xFF222222), child: const Icon(Icons.newspaper, color: Colors.white)),
+                  ? Image.network(posterPath, width: 90, height: 100, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(width: 90, height: 100, color: const Color(0xFFDDDDDD)))
+                  : Container(width: 90, height: 100, color: const Color(0xFFDDDDDD), child: const Icon(Icons.newspaper, color: Color(0xFF666666))),
               ),
               Expanded(
                 child: Padding(
@@ -1504,13 +1589,13 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFFD32F2F), borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(color: const Color(0xFF111111), borderRadius: BorderRadius.circular(4)),
                         child: const Text("NEWS", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1)),
                       ),
                       const SizedBox(height: 8),
-                      Text(headline, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(headline, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
-                      Text(source.toUpperCase(), style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text(source.toUpperCase(), style: const TextStyle(color: Color(0xFF666666), fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -1522,104 +1607,114 @@ class _BroadcastWireScreenState extends State<BroadcastWireScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left Column: Avatar & Thread Line
-            Column(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isRepost) ...[
+            Row(
               children: [
-                GestureDetector(
-                  onTap: () {
-                    final sid = data['senderId'];
-                    if (sid != null && sid.toString().isNotEmpty) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfileScreen(uid: sid)));
-                    }
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: rankColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        senderName.isNotEmpty ? senderName[0].toUpperCase() : "A",
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Impact'),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    width: 1,
-                    color: Colors.white10,
-                  ),
+                const Icon(Icons.repeat_rounded, color: Color(0xFF666666), size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  "$reposterName reposted",
+                  style: const TextStyle(color: Color(0xFF666666), fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const SizedBox(width: 16),
-            
-            // Right Column: Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isRepost) ...[
+            const SizedBox(height: 8),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final sid = data['senderId'];
+                  if (sid != null && sid.toString().isNotEmpty) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfileScreen(uid: sid)));
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
+                  child: CircleAvatar(
+                    backgroundColor: rankColor,
+                    radius: 20,
+                    child: Text(
+                      senderName.isNotEmpty ? senderName[0].toUpperCase() : "A",
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'Impact'),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        const Icon(Icons.repeat_rounded, color: Colors.white54, size: 14),
-                        const SizedBox(width: 6),
                         Text(
-                          "$reposterName reposted",
-                          style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold),
+                          senderName,
+                          style: const TextStyle(color: Color(0xFF111111), fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            "@$username • $timeAgo",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF888888), fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
                   ],
-                  Row(
-                    children: [
-                      Text(
-                        senderName.toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        "@$username",
-                        style: const TextStyle(color: Colors.white54, fontSize: 13),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        "• $timeAgo",
-                        style: const TextStyle(color: Colors.white54, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // Text Content
-                  if (reason.isNotEmpty)
-                    Text(
-                      reason,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
-                    ),
-                  
-                  // Embedded Media
-                  embeddedCard,
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Action Bar
-                  _buildPostFooter(docId, isOwner, timestamp, data, currentUserId),
-                ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_horiz, color: Color(0xFF888888)),
+                onPressed: () {
+                  if (isOwner) {
+                    _confirmBroadcastDeletion(docId);
+                  } else {
+                    _showReportDialog(docId);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          
+          // Text Content
+          if (reason.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 0, right: 16),
+              child: Text(
+                reason,
+                style: const TextStyle(color: Color(0xFF111111), fontSize: 14, height: 1.4),
               ),
             ),
-          ],
-        ),
+          
+          // Embedded Media
+          embeddedCard,
+          
+          const SizedBox(height: 12),
+          
+          // Action Bar
+          _buildPostFooter(docId, isOwner, timestamp, data, currentUserId),
+        ],
       ),
     );
   }

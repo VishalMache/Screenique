@@ -94,19 +94,18 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
-        color: const Color(0xFF0A0A0A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: const Border(top: BorderSide(color: Color(0xFF222222), width: 1)),
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
           // Drag handle
           Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            margin: const EdgeInsets.only(top: 16, bottom: 16),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: const Color(0xFFE0E0E0),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -114,14 +113,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           const Text(
             "COMMENTS",
             style: TextStyle(
-              color: Colors.white,
+              color: Color(0xFF111111),
               fontSize: 16,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'Impact',
-              letterSpacing: 2,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
             ),
           ),
-          const Divider(color: Colors.white, thickness: 1.5, height: 24),
+          const SizedBox(height: 16),
+          const Divider(color: Color(0xFFEEEEEE), thickness: 1, height: 1),
           
           // Comments List
           Expanded(
@@ -143,7 +142,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   return const Center(
                     child: Text(
                       "No comments yet. Be the first!",
-                      style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Color(0xFF888888), fontWeight: FontWeight.w600),
                     ),
                   );
                 }
@@ -168,8 +167,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
               bottom: MediaQuery.of(context).viewInsets.bottom + 16
             ),
             decoration: const BoxDecoration(
-              color: const Color(0xFF0A0A0A),
-              border: const Border(top: BorderSide(color: Colors.white10, width: 1)),
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFEEEEEE), width: 1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,11 +182,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       children: [
                         Text(
                           "Replying to @$_replyingToUsername",
-                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                         GestureDetector(
                           onTap: _cancelReply,
-                          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white54),
+                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF888888)),
                         )
                       ],
                     ),
@@ -198,17 +197,17 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF15181E),
+                          color: const Color(0xFFF9F9F4),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white10, width: 1),
+                          border: Border.all(color: const Color(0xFFE0E0D8), width: 1),
                         ),
                         child: TextField(
                           controller: _commentController,
                           focusNode: _focusNode,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: const TextStyle(color: Color(0xFF111111), fontSize: 14),
                           decoration: const InputDecoration(
                             hintText: "Add a comment...",
-                            hintStyle: TextStyle(color: Colors.white54),
+                            hintStyle: TextStyle(color: Color(0xFF888888)),
                             border: InputBorder.none,
                           ),
                         ),
@@ -218,13 +217,13 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                     GestureDetector(
                       onTap: _submitComment,
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 44,
+                        height: 44,
                         decoration: const BoxDecoration(
                           color: Color(0xFFD32F2F),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.send_rounded, color: const Color(0xFF0A0A0A), size: 18),
+                        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                       ),
                     ),
                   ],
@@ -284,45 +283,57 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         children: [
                           Text(
                             name.toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                            style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             _formatTime(timestamp),
-                            style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+                      Text(text, style: const TextStyle(color: Color(0xFF454545), fontSize: 14, height: 1.4)),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: () => _setReplyState(commentId, uid, username),
-                            child: const Text("Reply", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                              child: Text("Reply", style: TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
                           ),
                           const SizedBox(width: 16),
                           GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: () {
                               HapticFeedback.lightImpact();
                               _commentService.toggleCommentLike(widget.postId, commentId, widget.currentUserId, isLiked);
                             },
-                            child: Row(
-                              children: [
-                                Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 14, color: isLiked ? const Color(0xFFD32F2F) : Colors.white54),
-                                if (likes.isNotEmpty) ...[
-                                  const SizedBox(width: 4),
-                                  Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
-                                ]
-                              ],
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                              child: Row(
+                                children: [
+                                  Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 15, color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888888)),
+                                  if (likes.isNotEmpty) ...[
+                                    const SizedBox(width: 4),
+                                    Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ]
+                                ],
+                              ),
                             ),
                           ),
                           if (canDelete) ...[
                             const SizedBox(width: 16),
                             GestureDetector(
+                              behavior: HitTestBehavior.opaque,
                               onTap: () => _commentService.deleteComment(widget.postId, commentId),
-                              child: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.white54),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                child: Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFF888888)),
+                              ),
                             ),
                           ]
                         ],
@@ -407,45 +418,57 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       children: [
                         Text(
                           name.toUpperCase(),
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'Impact', letterSpacing: 0.5),
+                          style: const TextStyle(color: Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           _formatTime(timestamp),
-                          style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
+                    Text(text, style: const TextStyle(color: Color(0xFF454545), fontSize: 13, height: 1.4)),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () => _setReplyState(commentId, uid, username),
-                          child: const Text("Reply", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                            child: Text("Reply", style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
                         ),
                         const SizedBox(width: 16),
                         GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () {
                             HapticFeedback.lightImpact();
                             _commentService.toggleReplyLike(widget.postId, commentId, replyId, widget.currentUserId, isLiked);
                           },
-                          child: Row(
-                            children: [
-                              Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 12, color: isLiked ? const Color(0xFFD32F2F) : Colors.white54),
-                              if (likes.isNotEmpty) ...[
-                                const SizedBox(width: 4),
-                                Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ]
-                            ],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                            child: Row(
+                              children: [
+                                Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 13, color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888888)),
+                                if (likes.isNotEmpty) ...[
+                                  const SizedBox(width: 4),
+                                  Text(likes.length.toString(), style: TextStyle(color: isLiked ? const Color(0xFFD32F2F) : const Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.bold)),
+                                ]
+                              ],
+                            ),
                           ),
                         ),
                         if (canDelete) ...[
                           const SizedBox(width: 16),
                           GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: () => _commentService.deleteReply(widget.postId, commentId, replyId),
-                            child: const Icon(Icons.delete_outline_rounded, size: 12, color: Colors.white54),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                              child: Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFF888888)),
+                            ),
                           ),
                         ]
                       ],
