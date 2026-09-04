@@ -1,4 +1,4 @@
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -25,7 +25,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   
   Map<String, dynamic>? _fullDetails;
   String _directorName = "UNKNOWN"; 
+  int? _directorId;
   String? _trailerUrl;
+  YoutubePlayerController? _inlineTrailerController;
   List<Map<String, dynamic>> _watchProviders = [];
   bool _isSpotlight = false;
   bool _isWatched = false;
@@ -60,19 +62,41 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
       final providers = results[3] as List<Map<String, dynamic>>;
 
       String foundDirector = "UNKNOWN";
+      int? foundDirectorId;
       if (details != null && details['credits'] != null) {
         final crew = details['credits']['crew'] as List;
         final director = crew.firstWhere(
           (member) => member['job'] == 'Director', 
           orElse: () => null
         );
-        if (director != null) foundDirector = director['name'];
+        if (director != null) {
+          foundDirector = director['name'];
+          foundDirectorId = director['id'];
+        }
       }
 
-      if (mounted) {
+      if (context.mounted) {
+        if (trailer != null) {
+          final videoId = Uri.parse(trailer).queryParameters['v'] ?? '';
+          if (videoId.isNotEmpty) {
+            _inlineTrailerController = YoutubePlayerController.fromVideoId(
+              videoId: videoId,
+              autoPlay: true,
+              params: const YoutubePlayerParams(
+                showControls: false,
+                mute: true,
+                showFullscreenButton: false,
+                loop: true,
+                pointerEvents: PointerEvents.none,
+              ),
+            );
+          }
+        }
+
         setState(() {
           _fullDetails = details;
           _directorName = foundDirector;
+          _directorId = foundDirectorId;
           _cast = castData;
           _trailerUrl = trailer;
           _watchProviders = providers;
@@ -169,7 +193,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             onPressed: () async {
               if (reasonController.text.trim().isNotEmpty) {
                 await _watchlistService.broadcastMovie(_movie, reasonController.text.trim());
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -320,7 +344,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                 await _watchlistService.toggleMovieStatus(updatedMovie, 'watched');
                 await _watchlistService.updateMovieRating(_movie.id, rating);
                 
-                if (mounted) {
+                if (context.mounted) {
                   setState(() {
                     _movie = updatedMovie;
                     _isWatched = true;
@@ -347,34 +371,27 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color noirCrimson = Color(0xFF111111);
-    const Color tvBlue = Color(0xFF111111);
-    final Color accentColor = _movie.isTvShow ? tvBlue : noirCrimson;
+    const Color noirCrimson = Color(0xFFD32F2F); // Using standard red for accent as requested by design
+    final Color accentColor = noirCrimson;
+    const Color bgColor = Color(0xFFF4F4EC);
+    const Color textColor = Color(0xFF111111);
 
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF4F4EC),
+      return const Scaffold(
+        backgroundColor: bgColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(
+              SizedBox(
                 height: 40,
                 width: 40,
-                child: CircularProgressIndicator(
-                  color: Color(0xFFD32F2F),
-                  strokeWidth: 4,
-                ),
+                child: CircularProgressIndicator(color: noirCrimson, strokeWidth: 4),
               ),
-              const SizedBox(height: 24),
-              const Text(
+              SizedBox(height: 24),
+              Text(
                 "ACCESSING CINEMATIC ARCHIVES...",
-                style: TextStyle(
-                  color: Color(0xFF111111),
-                  fontFamily: 'Impact',
-                  fontSize: 14,
-                  letterSpacing: 2,
-                ),
+                style: TextStyle(color: textColor, fontFamily: 'Impact', fontSize: 14, letterSpacing: 2),
               ),
             ],
           ),
@@ -383,156 +400,127 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4EC),
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 8, bottom: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: textColor, width: 1.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: textColor, size: 18),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, top: 8, bottom: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: textColor, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.share_outlined, color: textColor, size: 20),
+                onPressed: () {
+                  // Assuming share logic
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          CustomScrollView(
+          SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            slivers: [
-              _buildAppBar(),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildPoster(),
+                const SizedBox(height: 24),
+                _buildTitleSection(accentColor),
+                const SizedBox(height: 12),
+                _buildMetaData(accentColor),
+                const SizedBox(height: 24),
+                
+                if (_fullDetails?['tagline'] != null && _fullDetails!['tagline'].toString().isNotEmpty) ...[
+                  _buildTagline(),
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                  const SizedBox(height: 24),
+                ],
+                
+                _buildSectionLabel("SYNOPSIS", accentColor),
+                const SizedBox(height: 12),
+                Text(
+                  _movie.overview,
+                  style: const TextStyle(color: textColor, fontSize: 14, height: 1.6, fontWeight: FontWeight.w500),
+                ),
+                
+                const SizedBox(height: 24),
+                const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                const SizedBox(height: 24),
+                
+                _buildSectionLabel("TECHNICAL DETAILS", accentColor),
+                const SizedBox(height: 16),
+                _buildTechnicalManifest(accentColor),
+
+                if (_fullDetails?['production_companies'] != null && (_fullDetails!['production_companies'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                  const SizedBox(height: 24),
+                  _buildSectionLabel("PRODUCTION STUDIOS", accentColor),
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      const SizedBox(height: 24),
-                      _buildTitleSection(),
-                      const SizedBox(height: 12),
-                      _buildMetaData(accentColor),
-                      const SizedBox(height: 20),
-                      
-                      if (_trailerUrl != null) ...[
-                        GestureDetector(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => TrailerDialog(videoUrl: _trailerUrl!),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111111),
-                              border: Border.all(color: const Color(0xFFD32F2F), width: 2),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0xFFD32F2F),
-                                  offset: Offset(4, 4),
-                                )
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.play_arrow_rounded, color: Color(0xFFF4F4EC), size: 20),
-                                const SizedBox(width: 8),
-                                const Text("WATCH TRAILER", style: TextStyle(color: Color(0xFFF4F4EC), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2, fontFamily: 'Impact')),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      
-                      // --- GENRES WRAP ---
-                      if (_fullDetails?['genres'] != null) ...[
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: (_fullDetails!['genres'] as List).map<Widget>((genre) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF4F4EC),
-                                border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                              ),
-                              child: Text(
-                                genre['name'].toString().toUpperCase(),
-                                style: const TextStyle(
-                                  color: Color(0xFF111111),
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // --- TAGLINE ---
-                      if (_fullDetails?['tagline'] != null && _fullDetails!['tagline'].toString().isNotEmpty) ...[
-                        Text(
-                          '"${_fullDetails!['tagline'].toString().toUpperCase()}"',
-                          style: const TextStyle(
-                            color: Color(0xFFD32F2F),
-                            fontSize: 15,
-                            fontStyle: FontStyle.italic,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'serif',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      const Divider(color: Color(0xFF111111), thickness: 3),
-                      const SizedBox(height: 24),
-                      
-                      _buildSectionLabel("LOGLINE", accentColor),
-                      const SizedBox(height: 12),
-                      Text(
-                        _movie.overview,
-                        style: const TextStyle(color: Color(0xFF111111), fontSize: 15, height: 1.7, fontWeight: FontWeight.w500),
-                      ),
-                      
-                      const SizedBox(height: 32),
-                      const Divider(color: Color(0xFF111111), thickness: 2),
-                      const SizedBox(height: 32),
-                      _buildSectionLabel("TECHNICAL DETAILS", accentColor),
-                      const SizedBox(height: 20),
-                      _buildTechnicalManifest(accentColor),
-
-                      // --- PRODUCTION COMPANIES ---
-                      if (_fullDetails?['production_companies'] != null && (_fullDetails!['production_companies'] as List).isNotEmpty) ...[
-                        const SizedBox(height: 32),
-                        const Divider(color: Color(0xFF111111), thickness: 2),
-                        const SizedBox(height: 32),
-                        _buildSectionLabel("PRODUCTION STUDIOS", accentColor),
-                        const SizedBox(height: 16),
-                        Text(
+                      Expanded(
+                        child: Text(
                           (_fullDetails!['production_companies'] as List)
                               .map((company) => company['name'])
-                              .join(" • ")
-                              .toUpperCase(),
+                              .join(" • "),
                           style: const TextStyle(
-                            color: Color(0xFF454545),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                            height: 1.6,
+                            color: textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-
-                      const SizedBox(height: 32),
-                      const Divider(color: Color(0xFF111111), thickness: 2),
-                      const SizedBox(height: 32),
-                      _buildWatchProvidersSection(accentColor),
-                      
-                      const SizedBox(height: 32),
-                      const Divider(color: Color(0xFF111111), thickness: 2),
-                      const SizedBox(height: 32),
-                      _buildCastSection(accentColor),
-                      const SizedBox(height: 40),
-                      _buildActionButtons(accentColor),
-                      SizedBox(height: _isInTheatres ? 160 : 80),
+                      ),
+                      const Icon(Icons.chevron_right, color: Colors.grey),
                     ],
                   ),
-                ),
-              ),
-            ],
+                ],
+
+                if (_watchProviders.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                  const SizedBox(height: 24),
+                  _buildSectionLabel("WHERE TO WATCH", accentColor),
+                  const SizedBox(height: 16),
+                  _buildWatchProvidersSection(),
+                ],
+                
+                if (_cast.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE0E0D8), thickness: 1.5),
+                  const SizedBox(height: 24),
+                  _buildSectionLabel("CAST MEMBERS", accentColor),
+                  const SizedBox(height: 16),
+                  _buildCastSection(accentColor),
+                ],
+                
+                const SizedBox(height: 32),
+                _buildActionButtons(accentColor),
+                SizedBox(height: _isInTheatres ? 140 : 60),
+              ],
+            ),
           ),
           if (_isInTheatres)
             Positioned(
@@ -543,6 +531,540 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _inlineTrailerController?.close();
+    super.dispose();
+  }
+
+  Widget _buildPoster() {
+    if (_inlineTrailerController != null) {
+      return Center(
+        child: Container(
+          width: double.infinity,
+          height: 220,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(77),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: YoutubePlayer(
+                  controller: _inlineTrailerController!,
+                  backgroundColor: Colors.black,
+                ),
+              ),
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_trailerUrl != null) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => TrailerDialog(videoUrl: _trailerUrl!),
+                      );
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: Hero(
+        tag: 'movie-poster-${_movie.id}',
+        child: Container(
+          width: 320,
+          height: 320,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(77),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  _movie.posterPath,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+              if (_fullDetails?['genres'] != null && (_fullDetails!['genres'] as List).isNotEmpty)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD32F2F),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      (_fullDetails!['genres'] as List).first['name'].toString().toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitleSection(Color accent) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            _movie.title.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF111111),
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+              height: 1.1,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () async {
+            if (_isSpotlight) { 
+              await _watchlistService.unpinFromTopFive(_movie.id); 
+              setState(() => _isSpotlight = false); 
+            } else { 
+              await _watchlistService.pinToTopFive(_movie); 
+              setState(() => _isSpotlight = true); 
+            }
+          },
+          child: Icon(
+            _isSpotlight ? Icons.stars : Icons.stars_outlined, 
+            color: accent, 
+            size: 32
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetaData(Color accent) {
+    final firstGenre = _fullDetails?['genres'] != null && (_fullDetails!['genres'] as List).isNotEmpty 
+        ? (_fullDetails!['genres'] as List).first['name'].toString().toUpperCase()
+        : (_movie.isTvShow ? "SERIES" : "FILM");
+        
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            border: Border.all(color: accent, width: 1.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            firstGenre,
+            style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          _movie.releaseDate.split('-')[0], 
+          style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(width: 12),
+        const Text("•", style: TextStyle(color: Colors.grey)),
+        const SizedBox(width: 12),
+        const Icon(Icons.star, color: Color(0xFFFFC107), size: 16),
+        const SizedBox(width: 4),
+        Text(
+          "${_movie.voteAverage}/10",
+          style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+
+
+  Widget _buildTagline() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("“", style: TextStyle(color: Color(0xFFD32F2F), fontSize: 32, fontWeight: FontWeight.w900, fontFamily: 'serif', height: 1.0)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              _fullDetails!['tagline'].toString().toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFFD32F2F),
+                fontSize: 16,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w800,
+                fontFamily: 'serif',
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabel(String label, Color accent) {
+    return Row(
+      children: [
+        Container(width: 3, height: 16, color: accent),
+        const SizedBox(width: 10),
+        Text(
+          label, 
+          style: const TextStyle(color: Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTechnicalManifest(Color accent) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F9F4), // Slightly lighter than background
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE0E0D8), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildSpecItem(
+                  Icons.chair_alt, 
+                  "DIRECTOR", 
+                  _directorName,
+                  onTap: _directorId != null ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PersonDetailsScreen(
+                          personId: _directorId!,
+                          name: _directorName,
+                        ),
+                      ),
+                    );
+                  } : null,
+                ),
+              ),
+              Expanded(
+                child: !_movie.isTvShow
+                    ? _buildSpecItem(Icons.access_time, "LENGTH", "${_fullDetails?['runtime'] ?? 'N/A'} min")
+                    : _buildSpecItem(Icons.live_tv, "SEASONS", "${_fullDetails?['number_of_seasons'] ?? 'N/A'} S"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Color(0xFFE0E0D8), height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildSpecItem(Icons.calendar_month, "STATUS", _fullDetails?['status'] ?? 'N/A')),
+              Expanded(child: _buildSpecItem(Icons.language, "ORIGIN", (_fullDetails?['original_language'] ?? 'N/A').toString().toUpperCase())),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Color(0xFFE0E0D8), height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: !_movie.isTvShow
+                    ? _buildSpecItem(Icons.monetization_on_outlined, "BUDGET", _fullDetails?['budget'] != null && _fullDetails!['budget'] > 0 ? "Set" : "Unset")
+                    : _buildSpecItem(Icons.category, "TYPE", _fullDetails?['type'] ?? 'N/A'),
+              ),
+              Expanded(
+                child: !_movie.isTvShow
+                    ? _buildSpecItem(Icons.bar_chart, "REVENUE", _fullDetails?['revenue'] != null && _fullDetails!['revenue'] > 0 ? "Set" : "Unset")
+                    : _buildSpecItem(Icons.bar_chart, "POPULARITY", "${_fullDetails?['popularity']?.toStringAsFixed(0) ?? 'N/A'}"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpecItem(IconData icon, String label, String value, {VoidCallback? onTap}) {
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFFD32F2F), size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label, 
+                style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value, 
+                style: TextStyle(
+                  color: onTap != null ? const Color(0xFFD32F2F) : const Color(0xFF111111), 
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w600,
+                  decoration: onTap != null ? TextDecoration.underline : null,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: content,
+      );
+    }
+    return content;
+  }
+
+  Widget _buildWatchProvidersSection() {
+    return SizedBox(
+      height: 90,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _watchProviders.length,
+        itemBuilder: (context, index) {
+          final provider = _watchProviders[index];
+          return Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE0E0D8), width: 1.5),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (provider['logo_path'] != null)
+                  Image.network(
+                    'https://image.tmdb.org/t/p/w200${provider['logo_path']}',
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                  )
+                else
+                  const Icon(Icons.live_tv, color: Color(0xFF111111), size: 40),
+                const SizedBox(height: 8),
+                Text(
+                  provider['type'].toString().toUpperCase(),
+                  style: const TextStyle(color: Color(0xFF111111), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCastSection(Color accent) {
+    return SizedBox(
+      height: 130,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _cast.length > 10 ? 10 : _cast.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PersonDetailsScreen(
+                      personId: _cast[index]['id'],
+                      name: _cast[index]['name'] ?? 'UNKNOWN',
+                    ),
+                  ),
+                );
+              },
+              child: SizedBox(
+                width: 70,
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 35, 
+                      backgroundColor: const Color(0xFFE0E0D8), 
+                      backgroundImage: _cast[index]['profile_path'] != null 
+                          ? NetworkImage('https://image.tmdb.org/t/p/w200${_cast[index]['profile_path']}') 
+                          : null,
+                      child: _cast[index]['profile_path'] == null 
+                          ? const Icon(Icons.person, color: Color(0xFF111111), size: 30)
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _cast[index]['name'] ?? 'Unknown',
+                      style: const TextStyle(color: Color(0xFF111111), fontSize: 11, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      (_cast[index]['character'] ?? '').toString().toUpperCase(),
+                      style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 9, fontWeight: FontWeight.w800),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(Color accent) {
+    return Row(
+      children: [
+        // ADD TO WATCHLIST
+        Expanded(
+          flex: 5,
+          child: GestureDetector(
+            onTap: () {
+              if (!_isWatched) {
+                _watchlistService.toggleMovieStatus(_movie, 'watchlist');
+                setState(() => _isInWatchlist = !_isInWatchlist);
+              }
+            },
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                color: const Color(0xFF111111),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(_isInWatchlist ? Icons.check : Icons.add, color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isInWatchlist ? "ON WATCHLIST" : "ADD TO WATCHLIST",
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        
+        // MARK WATCHED
+        Expanded(
+          flex: 4,
+          child: GestureDetector(
+            onTap: () {
+              if (!_isWatched) {
+                _showLogWatchedDialog(accent);
+              }
+            },
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                color: _isWatched ? const Color(0xFFE0E0D8) : Colors.transparent,
+                border: Border.all(color: const Color(0xFF111111), width: 1.5),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check, color: const Color(0xFF111111), size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isWatched ? "WATCHED" : "MARK WATCHED",
+                      style: const TextStyle(color: Color(0xFF111111), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        
+        // CINECAST
+        GestureDetector(
+          onTap: () => _showBroadcastDialog(accent),
+          child: Container(
+            height: 54,
+            width: 58,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFF111111), width: 1.5),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.podcasts_rounded, color: Color(0xFF111111), size: 20),
+                SizedBox(height: 2),
+                Text(
+                  "CINECAST",
+                  style: TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -597,349 +1119,6 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
             Text(title, style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, fontFamily: 'Impact')),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String label, Color accent) {
-    return Row(
-      children: [
-        Container(width: 4, height: 12, color: accent),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 3)),
-      ],
-    );
-  }
-
-  Widget _buildTechnicalManifest(Color accent) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Color(0xFF111111),
-      ),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        childAspectRatio: 2.3,
-        children: [
-          _buildSpecItem("DIRECTOR", _directorName.toUpperCase()),
-
-          if (!_movie.isTvShow)
-            _buildSpecItem("LENGTH", "${_fullDetails?['runtime'] ?? 'N/A'} MIN")
-          else
-            _buildSpecItem("SEASONS", "${_fullDetails?['number_of_seasons'] ?? 'N/A'} S / ${_fullDetails?['number_of_episodes'] ?? 'N/A'} E"),
-          
-          _buildSpecItem("STATE", (_fullDetails?['status'] ?? 'N/A').toString().toUpperCase()),
-          _buildSpecItem("ORIGIN", (_fullDetails?['original_language'] ?? 'N/A').toString().toUpperCase()),
-          
-          if (!_movie.isTvShow)
-            _buildSpecItem("BUDGET", _fullDetails?['budget'] != null && _fullDetails!['budget'] > 0 ? "\$${(_fullDetails!['budget'] / 1000000).toStringAsFixed(1)}M" : "UNSET")
-          else
-            _buildSpecItem("TYPE", (_fullDetails?['type'] ?? 'Web Series').toString().toUpperCase()),
-
-          if (!_movie.isTvShow)
-            _buildSpecItem("REVENUE", _fullDetails?['revenue'] != null && _fullDetails!['revenue'] > 0 ? "\$${(_fullDetails!['revenue'] / 1000000).toStringAsFixed(1)}M" : "UNSET")
-          else
-            _buildSpecItem("POPULARITY", "${_fullDetails?['popularity']?.toStringAsFixed(0) ?? 'N/A'} SCORE"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpecItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 2)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Color(0xFFF4F4EC), fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: 'monospace'), overflow: TextOverflow.ellipsis),
-      ],
-    );
-  }
-
-  Widget _buildAppBar() {
-    final String? backdropPath = _fullDetails?['backdrop_path'];
-    return SliverAppBar(
-      expandedHeight: 380, pinned: true, backgroundColor: const Color(0xFFF4F4EC),
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4F4EC),
-          border: Border.all(color: const Color(0xFF111111), width: 1.5),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111111), size: 16),
-          onPressed: () => Navigator.pop(context),
-          padding: EdgeInsets.zero,
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Atmospheric Backdrop Image
-            if (backdropPath != null)
-              ShaderMask(
-                shaderCallback: (bounds) {
-                  return const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.black54, Colors.transparent],
-                    stops: [0.3, 0.95],
-                  ).createShader(bounds);
-                },
-                blendMode: BlendMode.dstIn,
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                  child: Image.network(
-                    'https://image.tmdb.org/t/p/w780$backdropPath',
-                    fit: BoxFit.cover,
-                    color: Colors.grey,
-                    colorBlendMode: BlendMode.saturation,
-                  ),
-                ),
-              ),
-            // Floating Poster Card
-            Center(
-              child: Hero(
-                tag: 'movie-poster-${_movie.id}',
-                child: Container(
-                  width: 180, height: 260,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF4F4EC),
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: const Color(0xFF111111), width: 2),
-                    boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(5, 5))],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: Image.network(_movie.posterPath, fit: BoxFit.cover),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTitleSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(child: Text(_movie.title.toUpperCase(), style: const TextStyle(color: Color(0xFF111111), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1.0, height: 1.0, fontFamily: 'Impact'))),
-        IconButton(
-          onPressed: () async {
-            if (_isSpotlight) { await _watchlistService.unpinFromTopFive(_movie.id); setState(() => _isSpotlight = false); }
-            else { await _watchlistService.pinToTopFive(_movie); setState(() => _isSpotlight = true); }
-          },
-          icon: Icon(_isSpotlight ? Icons.stars : Icons.stars_outlined, color: _isSpotlight ? const Color(0xFF111111) : const Color(0xFF454545), size: 30),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetaData(Color accent) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: accent.withOpacity(0.1),
-            border: Border.all(color: accent),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            _movie.isTvShow ? "SERIES" : "FILM",
-            style: TextStyle(color: accent, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(_movie.releaseDate.split('-')[0], style: const TextStyle(color: Color(0xFF111111), fontWeight: FontWeight.bold, letterSpacing: 2)),
-        const SizedBox(width: 15),
-        const Text("•", style: TextStyle(color: Color(0xFF111111))),
-        const SizedBox(width: 15),
-        Text("${_movie.voteAverage} SCORE", style: const TextStyle(color: Color(0xFF111111), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
-      ],
-    );
-  }
-
-  Widget _buildWatchProvidersSection(Color accent) {
-    if (_watchProviders.isEmpty) return const SizedBox();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionLabel("WHERE TO WATCH", accent),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _watchProviders.length,
-            itemBuilder: (context, index) {
-              final provider = _watchProviders[index];
-              return Container(
-                margin: const EdgeInsets.only(right: 16),
-                width: 60,
-                child: Column(
-                  children: [
-                    Container(
-                      height: 48,
-                      width: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111111),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF111111), width: 1.5),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: provider['logo_path'] != null 
-                            ? Image.network('https://image.tmdb.org/t/p/w200${provider['logo_path']}', fit: BoxFit.cover)
-                            : const Icon(Icons.live_tv, color: Color(0xFFF4F4EC)),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      provider['type'].toString().toUpperCase(),
-                      style: const TextStyle(color: Color(0xFF454545), fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCastSection(Color accent) {
-    if (_cast.isEmpty) return const SizedBox();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionLabel("CAST MEMBERS", accent),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 110,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _cast.length > 10 ? 10 : _cast.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PersonDetailsScreen(
-                          personId: _cast[index]['id'],
-                          name: _cast[index]['name'] ?? 'UNKNOWN',
-                        ),
-                      ),
-                    );
-                  },
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 30, 
-                        backgroundColor: const Color(0xFFF4F4EC), 
-                        backgroundImage: _cast[index]['profile_path'] != null 
-                            ? NetworkImage('https://image.tmdb.org/t/p/w200${_cast[index]['profile_path']}') 
-                            : null,
-                        child: _cast[index]['profile_path'] == null 
-                            ? const Icon(Icons.person, color: Color(0xFF111111))
-                            : null,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(_cast[index]['name'].toString().toUpperCase().split(' ').first, style: const TextStyle(color: Color(0xFF111111), fontSize: 8, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(Color accent) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 60,
-            decoration: BoxDecoration(
-              color: _isWatched ? const Color(0xFFF4F4EC) : accent,
-              border: Border.all(color: const Color(0xFF111111), width: 2),
-              boxShadow: _isWatched ? [] : const [BoxShadow(color: Color(0xFF111111), offset: Offset(6, 6))],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (!_isWatched) {
-                  _showLogWatchedDialog(accent);
-                }
-              },
-              icon: Icon(_isWatched ? Icons.check_circle : Icons.play_circle_fill, size: 20),
-              label: Text(
-                _isWatched ? "WATCHED" : "MARK WATCHED", 
-                style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 11)
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                foregroundColor: _isWatched ? const Color(0xFF111111) : const Color(0xFFF4F4EC),
-                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        _buildSmallIconButton(
-          icon: _isInWatchlist ? Icons.bookmark_added : Icons.bookmark_outline,
-          isActive: _isInWatchlist,
-          accent: accent,
-          onTap: () {
-            if (!_isWatched) {
-              _watchlistService.toggleMovieStatus(_movie, 'watchlist');
-              setState(() => _isInWatchlist = !_isInWatchlist);
-            }
-          },
-        ),
-        const SizedBox(width: 12),
-
-        _buildSmallIconButton(
-          icon: Icons.podcasts_rounded,
-          isActive: false, 
-          accent: accent,
-          onTap: () => _showBroadcastDialog(accent),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSmallIconButton({required IconData icon, required bool isActive, required Color accent, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: 60, width: 60,
-        decoration: BoxDecoration(
-          color: isActive ? accent : const Color(0xFFF4F4EC), 
-          border: Border.all(color: const Color(0xFF111111), width: 2),
-          boxShadow: const [BoxShadow(color: Color(0xFF111111), offset: Offset(4, 4))],
-        ),
-        child: Icon(icon, color: isActive ? const Color(0xFFF4F4EC) : const Color(0xFF111111)),
       ),
     );
   }
